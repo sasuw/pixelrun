@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Jump - Unified Edition</title>
+<style>
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at top, #415a77 0%, #1b263b 45%, #0d1b2a 100%);
+    font-family: monospace;
+}
+
+canvas {
+    width: min(96vw, 960px);
+    height: auto;
+    image-rendering: pixelated;
+    border: 4px solid #ffffff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+</style>
+</head>
+<body>
+<canvas id="game" width="640" height="360"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const gravity = 0.7;
+const friction = 0.88;
+const rockBlockSize = 8;
+const swordDrawSpeed = 0.18;
+const attackDurationFrames = 8;
+const fireballCooldownFrames = 18;
+const platformLeadDistance = 900;
+const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
+const shopCost = 20;
+
+const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
+const coinSound = new Audio("https://www.myinstants.com/media/sounds/mario_coin_sound.mp3");
+const bgMusic = new Audio("https://cdn.pixabay.com/audio/2024/08/20/audio_3204534a60.mp3");
+bgMusic.loop = true;
+bgMusic.volume = 0.3;
+
+const ninjaSkin = {
+    idle: [
+        ["", "#000", "#000", ""],
+        ["#000", "#000", "#000", "#000"],
+        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#000", "", "#000"]
+    ],
+    run1: [
+        ["", "#000", "#000", ""],
+        ["#000", "#000", "#000", "#000"],
+        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "", "#000", "#000"]
+    ],
+    run2: [
+        ["", "#000", "#000", ""],
+        ["#000", "#000", "#000", "#000"],
+        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["", "#000", "#000", "#000"]
+    ],
+    jump: [
+        ["", "#000", "#000", ""],
+        ["#000", "#000", "#000", "#000"],
+        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#000", "", "#000"]
+    ],
+    attack: [
+        ["", "#000", "#000", ""],
+        ["#000", "#000", "#000", "#000"],
+        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#000", "", "#000"]
+    ]
+};
+
+const keys = {};
+const clouds = [
+    { x: 50, y: 50 },
+    { x: 200, y: 90 },
+    { x: 400, y: 60 },
+    { x: 620, y: 35 }
+];
+
+let gameState = "menu";
+let player = null;
+let cameraX = 0;
+let score = 0;
+let highScore = 0;
+let coinsBank = 0;
+let platforms = [];
+let coins = [];
+let enemies = [];
+let fireBalls = [];
+let rockWall = [];
+let lastPlatformX = 0;
+let frame = 0;
+let ninjaFrameCounter = 0;
+let shopOpen = false;
+let hasFireSword = false;
+let drawingSword = false;
+let swordProgress = 0;
+let attacking = false;
+let attackFramesLeft = 0;
+let fireballCooldown = 0;
+
+function clearKeys() {
+    for (const code of Object.keys(keys)) {
+        keys[code] = false;
+    }
+}
+
+function safePlay(audio) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+}
+
+function resetCombatState() {
+    drawingSword = false;
+    swordProgress = 0;
+    attacking = false;
+    attackFramesLeft = 0;
+    fireballCooldown = 0;
+}
+
+function resetRun() {
+    score = 0;
+    cameraX = 0;
+    frame = 0;
+    ninjaFrameCounter = 0;
+    platforms = [];
+    coins = [];
+    enemies = [];
+    fireBalls = [];
+    rockWall = [];
+    lastPlatformX = 0;
+    shopOpen = false;
+    player = {
+        x: playerSpawn.x,
+        y: playerSpawn.y,
+        w: playerSpawn.w,
+        h: playerSpawn.h,
+        dx: 0,
+        dy: 0,
+        jumps: 0,
+        facing: 1
+    };
+
+    clearKeys();
+    resetCombatState();
+
+    const startIndex = Math.floor((player.x - 150) / rockBlockSize);
+    const columnsNeeded = Math.ceil(canvas.width / rockBlockSize) + 50;
+    for (let i = startIndex; i < startIndex + columnsNeeded; i++) {
+        generateRockColumn(i);
+    }
+    generateWorld();
+}
+
+function startGame() {
+    resetRun();
+    gameState = "playing";
+    bgMusic.play().catch(() => {});
+}
+
+function endRun() {
+    highScore = Math.max(highScore, score);
+    gameState = "menu";
+    shopOpen = false;
+    clearKeys();
+    resetCombatState();
+}
+
+function generateRockColumn(xIndex) {
+    const col = [];
+    const rockRows = Math.ceil(canvas.height / rockBlockSize);
+    const shades = ["#6a6a6a", "#7a7a7a", "#8a8a8a", "#9a9a9a"];
+    for (let y = 0; y < rockRows; y++) {
+        col.push(shades[Math.floor(Math.random() * shades.length)]);
+    }
+    rockWall.push({ xIndex, col });
+}
+
+function updateRockWall() {
+    rockWall = rockWall.filter((column) => (column.xIndex * rockBlockSize) > cameraX - 100);
+    let lastXIndex = rockWall.length === 0
+        ? Math.floor(cameraX / rockBlockSize)
+        : rockWall[rockWall.length - 1].xIndex;
+
+    while (lastXIndex * rockBlockSize < cameraX + canvas.width + 100) {
+        lastXIndex++;
+        generateRockColumn(lastXIndex);
+    }
+}
+
+function generateWorld() {
+    while (lastPlatformX < cameraX + platformLeadDistance) {
+        const width = 48 + Math.random() * 48;
+        const gap = 28 + Math.random() * 44;
+        const height = 140 + Math.random() * 110;
+        const platform = { x: lastPlatformX + gap, y: height, w: width, h: 10 };
+
+        platforms.push(platform);
+
+        if (Math.random() < 0.68) {
+            coins.push({ x: platform.x + width / 2 - 3, y: platform.y - 12, w: 6, h: 6 });
+        }
+        if (Math.random() < 0.18) {
+            enemies.push({
+                x: platform.x + 5,
+                y: platform.y - 10,
+                w: 10,
+                h: 10,
+                dir: Math.random() < 0.5 ? -1 : 1
+            });
+        }
+
+        lastPlatformX += gap + width;
+    }
+}
+
+function getNinjaFrame() {
+    if (!player) {
+        return "idle";
+    }
+    if (drawingSword || attacking) {
+        return "attack";
+    }
+    if (player.jumps > 0) {
+        return "jump";
+    }
+    if (keys.ArrowLeft || keys.ArrowRight) {
+        ninjaFrameCounter++;
+        return ninjaFrameCounter % 10 < 5 ? "run1" : "run2";
+    }
+    return "idle";
+}
+
+function getKatanaHitbox() {
+    return {
+        x: player.x + (player.facing === 1 ? player.w : -8),
+        y: player.y + 1,
+        w: 8,
+        h: 12
+    };
+}
+
+function rectsOverlap(a, b) {
+    return a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y;
+}
+
+function buyFireSword() {
+    if (hasFireSword || coinsBank < shopCost) {
+        return;
+    }
+    coinsBank -= shopCost;
+    hasFireSword = true;
+}
+
+function launchFireball() {
+    if (!hasFireSword || fireballCooldown > 0 || !player) {
+        return;
+    }
+
+    fireBalls.push({
+        x: player.x + (player.facing === 1 ? player.w : -6),
+        y: player.y + 3,
+        w: 6,
+        h: 6,
+        dir: player.facing,
+        speed: 6
+    });
+    fireballCooldown = fireballCooldownFrames;
+}
+
+function startAttack() {
+    if (!player || shopOpen || drawingSword || attacking) {
+        return;
+    }
+    drawingSword = true;
+    swordProgress = 0;
+}
+
+function updateAttackState() {
+    if (drawingSword) {
+        swordProgress = Math.min(1, swordProgress + swordDrawSpeed);
+        if (swordProgress >= 1) {
+            drawingSword = false;
+            attacking = true;
+            attackFramesLeft = attackDurationFrames;
+        }
+    } else if (attacking) {
+        attackFramesLeft--;
+        if (attackFramesLeft <= 0) {
+            attacking = false;
+        }
+    }
+}
+
+function updatePlayer() {
+    if (keys.ArrowLeft) {
+        player.dx -= 0.5;
+        player.facing = -1;
+    }
+    if (keys.ArrowRight) {
+        player.dx += 0.5;
+        player.facing = 1;
+    }
+    if (keys.Space && player.jumps < 2) {
+        player.dy = -12;
+        player.jumps++;
+        safePlay(jumpSound);
+        keys.Space = false;
+    }
+    if (keys.KeyX || keys.ShiftLeft || keys.ShiftRight) {
+        startAttack();
+    }
+
+    const previousBottom = player.y + player.h;
+    player.dy += gravity;
+    player.x += player.dx;
+    player.y += player.dy;
+    player.dx *= friction;
+
+    if (player.x < 0) {
+        player.x = 0;
+        player.dx = 0;
+    }
+
+    for (const platform of platforms) {
+        const fallingOntoPlatform =
+            player.x < platform.x + platform.w &&
+            player.x + player.w > platform.x &&
+            previousBottom <= platform.y &&
+            player.y + player.h >= platform.y;
+
+        if (fallingOntoPlatform) {
+            player.y = platform.y - player.h;
+            player.dy = 0;
+            player.jumps = 0;
+        }
+    }
+}
+
+function updateCoins() {
+    coins = coins.filter((coin) => {
+        if (!rectsOverlap(player, coin)) {
+            return true;
+        }
+        score++;
+        coinsBank++;
+        highScore = Math.max(highScore, score);
+        safePlay(coinSound);
+        return false;
+    });
+}
+
+function updateEnemies() {
+    const katanaHitbox = attacking ? getKatanaHitbox() : null;
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
+        enemy.x += enemy.dir;
+
+        if (Math.random() < 0.01) {
+            enemy.dir *= -1;
+        }
+
+        if (katanaHitbox && rectsOverlap(katanaHitbox, enemy)) {
+            enemies.splice(i, 1);
+            score += 5;
+            highScore = Math.max(highScore, score);
+            continue;
+        }
+
+        if (rectsOverlap(player, enemy)) {
+            endRun();
+            return;
+        }
+    }
+}
+
+function updateFireballs() {
+    for (let i = fireBalls.length - 1; i >= 0; i--) {
+        const fireball = fireBalls[i];
+        fireball.x += fireball.dir * fireball.speed;
+
+        let consumed = false;
+        for (let j = enemies.length - 1; j >= 0; j--) {
+            const enemy = enemies[j];
+            if (!rectsOverlap(fireball, enemy)) {
+                continue;
+            }
+            enemies.splice(j, 1);
+            fireBalls.splice(i, 1);
+            score += 5;
+            highScore = Math.max(highScore, score);
+            consumed = true;
+            break;
+        }
+
+        if (!consumed && Math.abs(fireball.x - player.x) > 700) {
+            fireBalls.splice(i, 1);
+        }
+    }
+}
+
+function drawEnemy(x, y) {
+    ctx.fillStyle = "#8B0000";
+    ctx.fillRect(x, y, 10, 10);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(x + 2, y + 2, 2, 2);
+    ctx.fillRect(x + 6, y + 2, 2, 2);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(x + 3, y + 7, 4, 1);
+}
+
+function drawKatana(x, y) {
+    const katanaLength = 12;
+    const katanaWidth = 2;
+    const shoulderX = x + 6 * player.facing;
+    const shoulderY = y + 2;
+
+    ctx.save();
+
+    if (drawingSword) {
+        const handX = x + 6 * player.facing;
+        const handY = y + 2;
+        const backX = x + 2 * player.facing;
+        const backY = y;
+        const drawX = backX + (handX - backX) * swordProgress;
+        const drawY = backY + (handY - backY) * swordProgress;
+
+        ctx.translate(drawX, drawY);
+        ctx.fillStyle = "#cccccc";
+        ctx.fillRect(0, 0, katanaWidth, katanaLength);
+    } else if (attacking) {
+        const handX = x + 6 * player.facing;
+        const handY = y + 2;
+        const swingProgress = 1 - (attackFramesLeft / attackDurationFrames);
+        const angle = (swingProgress * 0.8 - 0.4) * player.facing;
+
+        ctx.translate(handX, handY);
+        ctx.rotate(angle);
+        ctx.fillStyle = "#ffff66";
+        ctx.fillRect(0, 0, katanaWidth, katanaLength);
+    } else {
+        ctx.translate(shoulderX, shoulderY);
+        ctx.fillStyle = "#cccccc";
+        ctx.fillRect(0, 0, katanaWidth, 4);
+    }
+
+    ctx.restore();
+}
+
+function drawPlayer(x, y) {
+    const frameName = getNinjaFrame();
+    const skin = ninjaSkin[frameName];
+    const pixelSize = 3;
+
+    for (let row = 0; row < skin.length; row++) {
+        for (let col = 0; col < skin[row].length; col++) {
+            if (!skin[row][col]) {
+                continue;
+            }
+            ctx.fillStyle = skin[row][col];
+            ctx.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
+        }
+    }
+
+    drawKatana(x, y);
+}
+
+function drawMenu() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+    ctx.fillRect(130, 70, 380, 220);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 20px monospace";
+    ctx.fillText("PIXEL RUN", 235, 112);
+    ctx.font = "12px monospace";
+    ctx.fillText("Press any key to start", 218, 145);
+    ctx.fillText("Arrow keys to move, Space to jump", 178, 172);
+    ctx.fillText("X / Shift to slash, F for fireball", 182, 192);
+    ctx.fillText("S opens the shop during a run", 194, 212);
+    ctx.fillText(`Highscore: ${highScore}`, 235, 245);
+    ctx.fillText(`Coins in wallet: ${coinsBank}`, 218, 265);
+}
+
+function drawShop() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.74)";
+    ctx.fillRect(100, 80, 440, 190);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "16px monospace";
+    ctx.fillText("SHOP", 120, 112);
+    ctx.font = "12px monospace";
+    ctx.fillText(`Fire Sword: ${shopCost} coins`, 120, 148);
+    ctx.fillText(`Wallet: ${coinsBank}`, 120, 170);
+    if (hasFireSword) {
+        ctx.fillText("Purchased. Press F to launch fireballs.", 120, 196);
+    } else if (coinsBank >= shopCost) {
+        ctx.fillText("Press Enter to buy.", 120, 196);
+    } else {
+        ctx.fillText("Collect more coins to unlock it.", 120, 196);
+    }
+    ctx.fillText("Press S to close the shop.", 120, 224);
+}
+
+function drawHud() {
+    ctx.fillStyle = "#000000";
+    ctx.font = "12px monospace";
+    ctx.fillText(`Score: ${score}`, 10, 14);
+    ctx.fillText(`Highscore: ${highScore}`, 10, 30);
+    ctx.fillText(`Wallet: ${coinsBank}`, 10, 46);
+    ctx.fillText(`Sword: ${hasFireSword ? "YES" : "NO"}`, 10, 62);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, "#87CEEB");
+    gradient.addColorStop(1, "#C0E0FF");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const waterHeight = 40;
+    const waveOffset = (Date.now() * 0.005) % 20;
+    for (let y = canvas.height - waterHeight; y < canvas.height; y += 4) {
+        ctx.fillStyle = "rgba(0,100,255,0.6)";
+        for (let x = 0; x < canvas.width; x += 8) {
+            const wave = Math.sin((x + waveOffset) / 10) * 3;
+            ctx.fillRect(x, y + wave, 8, 4);
+        }
+    }
+
+    for (const column of rockWall) {
+        for (let y = 0; y < column.col.length; y++) {
+            ctx.fillStyle = column.col[y];
+            ctx.fillRect(column.xIndex * rockBlockSize - cameraX, y * rockBlockSize, rockBlockSize, rockBlockSize);
+        }
+    }
+
+    for (const cloud of clouds) {
+        const cloudX = cloud.x - cameraX * 0.5;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(cloudX, cloud.y, 16, 8);
+        ctx.fillRect(cloudX + 8, cloud.y - 4, 16, 8);
+        ctx.fillRect(cloudX + 16, cloud.y, 16, 8);
+    }
+
+    if (gameState === "menu") {
+        drawMenu();
+        return;
+    }
+
+    for (const platform of platforms) {
+        for (let i = 0; i < platform.w; i += 8) {
+            ctx.fillStyle = "#8B4513";
+            ctx.fillRect(platform.x - cameraX + i, platform.y, 8, 8);
+            ctx.fillStyle = "#5A2E0C";
+            ctx.fillRect(platform.x - cameraX + i, platform.y + 4, 8, 4);
+        }
+    }
+
+    for (const coin of coins) {
+        ctx.fillStyle = "#FFD700";
+        ctx.fillRect(coin.x - cameraX, coin.y, coin.w, coin.h);
+        ctx.fillStyle = "#FFF3B0";
+        ctx.fillRect(coin.x - cameraX + 1, coin.y + 1, 2, 2);
+    }
+
+    for (const enemy of enemies) {
+        drawEnemy(enemy.x - cameraX, enemy.y);
+    }
+
+    for (const fireball of fireBalls) {
+        ctx.fillStyle = "#ff7a00";
+        ctx.fillRect(fireball.x - cameraX, fireball.y, fireball.w, fireball.h);
+        ctx.fillStyle = "#ffe680";
+        ctx.fillRect(fireball.x - cameraX + 1, fireball.y + 1, 2, 2);
+    }
+
+    drawPlayer(player.x - cameraX, player.y);
+    drawHud();
+
+    if (shopOpen) {
+        drawShop();
+    }
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+    for (let i = 0; i < canvas.height; i += 2) {
+        ctx.fillRect(0, i, canvas.width, 1);
+    }
+}
+
+function update() {
+    frame++;
+
+    if (gameState !== "playing") {
+        draw();
+        requestAnimationFrame(update);
+        return;
+    }
+
+    if (frame % 2 === 0) {
+        if (!shopOpen) {
+            updateAttackState();
+            updatePlayer();
+            updateCoins();
+            updateEnemies();
+            if (gameState === "playing") {
+                updateFireballs();
+            }
+        }
+
+        if (gameState === "playing" && player.y > canvas.height) {
+            endRun();
+        }
+
+        if (gameState === "playing") {
+            cameraX = Math.max(0, player.x - 150);
+            platforms = platforms.filter((platform) => platform.x + platform.w > cameraX - 50);
+            coins = coins.filter((coin) => coin.x + coin.w > cameraX - 50);
+            enemies = enemies.filter((enemy) => enemy.x + enemy.w > cameraX - 50);
+            generateWorld();
+            updateRockWall();
+        }
+
+        if (fireballCooldown > 0) {
+            fireballCooldown--;
+        }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+document.addEventListener("keydown", (event) => {
+    keys[event.code] = true;
+
+    if (gameState === "menu") {
+        startGame();
+        return;
+    }
+
+    if (event.code === "KeyS") {
+        shopOpen = !shopOpen;
+        return;
+    }
+
+    if (shopOpen && event.code === "Enter") {
+        buyFireSword();
+        return;
+    }
+
+    if (event.code === "KeyF" && !shopOpen) {
+        launchFireball();
+    }
+});
+
+document.addEventListener("keyup", (event) => {
+    keys[event.code] = false;
+});
+
+resetRun();
+update();
+</script>
+</body>
+</html>
