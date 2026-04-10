@@ -28,9 +28,11 @@ canvas {
 <body>
 <canvas id="game" width="640" height="360"></canvas>
 
+<script src="game-logic.js"></script>
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const { createEnemyForPlatform, updateEnemyPatrol } = GameLogic;
 
 const gravity = 0.7;
 const friction = 0.88;
@@ -213,13 +215,10 @@ function generateWorld() {
             coins.push({ x: platform.x + width / 2 - 3, y: platform.y - 12, w: 6, h: 6 });
         }
         if (Math.random() < 0.18) {
-            enemies.push({
-                x: platform.x + 5,
-                y: platform.y - 10,
-                w: 10,
-                h: 10,
-                dir: Math.random() < 0.5 ? -1 : 1
-            });
+            enemies.push(createEnemyForPlatform(
+                platform,
+                Math.random() < 0.5 ? -1 : 1
+            ));
         }
 
         lastPlatformX += gap + width;
@@ -369,12 +368,8 @@ function updateEnemies() {
     const katanaHitbox = attacking ? getKatanaHitbox() : null;
 
     for (let i = enemies.length - 1; i >= 0; i--) {
-        const enemy = enemies[i];
-        enemy.x += enemy.dir;
-
-        if (Math.random() < 0.01) {
-            enemy.dir *= -1;
-        }
+        const enemy = updateEnemyPatrol(enemies[i], Math.random());
+        enemies[i] = enemy;
 
         if (katanaHitbox && rectsOverlap(katanaHitbox, enemy)) {
             enemies.splice(i, 1);

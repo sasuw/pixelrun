@@ -1,0 +1,7 @@
+{
+  "name": "pixel-jump-unified-edition",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
