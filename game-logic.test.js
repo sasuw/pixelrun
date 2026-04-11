@@ -4,9 +4,20 @@ const assert = require("node:assert/strict");
 const {
     createStarterPlatform,
     createEnemyForPlatform,
+    createSolidMask,
+    createSpriteMask,
     getEnemyPatrolBounds,
+    masksOverlap,
+    rectsOverlap,
     updateEnemyPatrol
 } = require("./game-logic.js");
+
+const ninjaJumpSprite = [
+    ["", "#000", "#000", ""],
+    ["#000", "#000", "#000", "#000"],
+    ["#000", "#ff0000", "#ff0000", "#000"],
+    ["#000", "#000", "", "#000"]
+];
 
 test("createStarterPlatform always covers the player spawn point", () => {
     const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
@@ -88,4 +99,45 @@ test("createEnemyForPlatform clamps narrow platforms safely", () => {
     assert.equal(enemy.patrolMaxX, 10);
     assert.equal(enemy.x, 10);
     assert.equal(enemy.y, 80);
+});
+
+test("createSpriteMask compacts contiguous sprite pixels into row segments", () => {
+    const mask = createSpriteMask([
+        ["#", "#", "", "#"],
+        ["", "", "", ""],
+        ["", "#", "#", "#"]
+    ], 2);
+
+    assert.deepEqual(mask, [
+        { x: 0, y: 0, w: 4, h: 2 },
+        { x: 6, y: 0, w: 2, h: 2 },
+        { x: 2, y: 4, w: 6, h: 2 }
+    ]);
+});
+
+test("masksOverlap ignores transparent gaps inside a sprite bounding box", () => {
+    const diagonalMask = createSpriteMask([
+        ["#", ""],
+        ["", "#"]
+    ], 3);
+    const probeMask = createSolidMask(2, 2);
+
+    assert.equal(
+        masksOverlap({ x: 0, y: 0 }, diagonalMask, { x: 3, y: 0 }, probeMask),
+        false
+    );
+    assert.equal(
+        masksOverlap({ x: 0, y: 0 }, diagonalMask, { x: 4, y: 4 }, probeMask),
+        true
+    );
+});
+
+test("sprite-mask collision matches visible ninja pixels more closely than the old player box", () => {
+    const player = { x: 50, y: 49, w: 10, h: 10 };
+    const enemy = { x: 51, y: 60, w: 10, h: 10 };
+    const playerMask = createSpriteMask(ninjaJumpSprite, 3);
+    const enemyMask = createSolidMask(10, 10);
+
+    assert.equal(rectsOverlap(player, enemy), false);
+    assert.equal(masksOverlap(player, playerMask, enemy, enemyMask), true);
 });
