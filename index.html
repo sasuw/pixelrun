@@ -477,18 +477,26 @@ function drawPlayer(x, y) {
 }
 
 function drawMenu() {
+    const panelX = 130;
+    const panelY = 70;
+    const panelWidth = 380;
+    const panelHeight = 220;
+    const panelCenterX = panelX + panelWidth / 2;
+
     ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-    ctx.fillRect(130, 70, 380, 220);
+    ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
     ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
     ctx.font = "bold 20px monospace";
-    ctx.fillText("PIXEL RUN", 235, 112);
+    ctx.fillText("PIXEL RUN", panelCenterX, 112);
     ctx.font = "12px monospace";
-    ctx.fillText("Press any key to start", 218, 145);
-    ctx.fillText("Arrow keys to move, Space to jump", 178, 172);
-    ctx.fillText("X / Shift to slash, F for fireball", 182, 192);
-    ctx.fillText("S opens the shop during a run", 194, 212);
-    ctx.fillText(`Highscore: ${highScore}`, 235, 245);
-    ctx.fillText(`Coins in wallet: ${coinsBank}`, 218, 265);
+    ctx.fillText("Press any key to start", panelCenterX, 145);
+    ctx.fillText("Arrow keys to move, Space to jump", panelCenterX, 172);
+    ctx.fillText("X / Shift to slash, F for fireball", panelCenterX, 192);
+    ctx.fillText("S opens the shop during a run", panelCenterX, 212);
+    ctx.fillText(`Highscore: ${highScore}`, panelCenterX, 245);
+    ctx.fillText(`Coins in wallet: ${coinsBank}`, panelCenterX, 265);
+    ctx.textAlign = "left";
 }
 
 function drawShop() {
