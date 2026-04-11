@@ -7,6 +7,26 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
     const defaultEnemySize = { w: 10, h: 10 };
     const defaultEnemyInset = 5;
+    const defaultStarterPlatform = {
+        width: 128,
+        height: 10,
+        topY: 132,
+        leftInset: 36
+    };
+
+    function createStarterPlatform(playerSpawn, options) {
+        const config = {
+            ...defaultStarterPlatform,
+            ...(options || {})
+        };
+
+        return {
+            x: Math.max(0, playerSpawn.x - config.leftInset),
+            y: config.topY,
+            w: config.width,
+            h: config.height
+        };
+    }
 
     function getEnemyPatrolBounds(platform, enemyWidth) {
         const minX = platform.x;
@@ -54,6 +74,7 @@
     }
 
     return {
+        createStarterPlatform,
         createEnemyForPlatform,
         getEnemyPatrolBounds,
         updateEnemyPatrol

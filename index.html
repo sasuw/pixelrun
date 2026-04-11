@@ -32,7 +32,7 @@ canvas {
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const { createEnemyForPlatform, updateEnemyPatrol } = GameLogic;
+const { createEnemyForPlatform, createStarterPlatform, updateEnemyPatrol } = GameLogic;
 
 const gravity = 0.7;
 const friction = 0.88;
@@ -203,6 +203,12 @@ function updateRockWall() {
 }
 
 function generateWorld() {
+    if (platforms.length === 0) {
+        const starterPlatform = createStarterPlatform(playerSpawn);
+        platforms.push(starterPlatform);
+        lastPlatformX = starterPlatform.x + starterPlatform.w;
+    }
+
     while (lastPlatformX < cameraX + platformLeadDistance) {
         const width = 48 + Math.random() * 48;
         const gap = 28 + Math.random() * 44;

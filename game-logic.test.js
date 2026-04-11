@@ -2,10 +2,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+    createStarterPlatform,
     createEnemyForPlatform,
     getEnemyPatrolBounds,
     updateEnemyPatrol
 } = require("./game-logic.js");
+
+test("createStarterPlatform always covers the player spawn point", () => {
+    const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
+    const platform = createStarterPlatform(playerSpawn);
+
+    assert.ok(playerSpawn.x >= platform.x);
+    assert.ok(playerSpawn.x + playerSpawn.w <= platform.x + platform.w);
+    assert.ok(platform.y > playerSpawn.y + playerSpawn.h);
+});
 
 test("createEnemyForPlatform keeps the enemy on top of the platform", () => {
     const platform = { x: 120, y: 220, w: 60, h: 10 };
