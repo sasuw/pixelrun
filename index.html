@@ -696,16 +696,19 @@ function drawEnemy(x, y) {
 function drawKatana(x, y) {
     const katanaLength = 12;
     const katanaWidth = 2;
-    const shoulderX = x + 6 * player.facing;
-    const shoulderY = y + 2;
+    const spriteCenterX = x + 6;
+    const handX = 0;
+    const handY = 2;
 
+    // Draw in right-facing coordinates around the sprite center and mirror
+    // for the left, so the sword looks the same in both directions.
     ctx.save();
+    ctx.translate(spriteCenterX, y);
+    ctx.scale(player.facing, 1);
 
     if (drawingSword) {
-        const handX = x + 6 * player.facing;
-        const handY = y + 2;
-        const backX = x + 2 * player.facing;
-        const backY = y;
+        const backX = -4;
+        const backY = 0;
         const drawX = backX + (handX - backX) * swordProgress;
         const drawY = backY + (handY - backY) * swordProgress;
 
@@ -713,17 +716,15 @@ function drawKatana(x, y) {
         ctx.fillStyle = "#cccccc";
         ctx.fillRect(0, 0, katanaWidth, katanaLength);
     } else if (attacking) {
-        const handX = x + 6 * player.facing;
-        const handY = y + 2;
         const swingProgress = 1 - (attackFramesLeft / attackDurationFrames);
-        const angle = (swingProgress * 0.8 - 0.4) * player.facing;
+        const angle = swingProgress * 0.8 - 0.4;
 
         ctx.translate(handX, handY);
         ctx.rotate(angle);
         ctx.fillStyle = "#ffff66";
         ctx.fillRect(0, 0, katanaWidth, katanaLength);
     } else {
-        ctx.translate(shoulderX, shoulderY);
+        ctx.translate(handX, handY);
         ctx.fillStyle = "#cccccc";
         ctx.fillRect(0, 0, katanaWidth, 4);
     }
