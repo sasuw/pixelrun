@@ -299,6 +299,7 @@ const fireballCooldownFrames = 18;
 const platformLeadDistance = 900;
 const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
 const shopCost = 20;
+const highScoreStorageKey = "pixelrun.highScore";
 
 const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
 const coinSound = new Audio("https://www.myinstants.com/media/sounds/mario_coin_sound.mp3");
@@ -361,7 +362,7 @@ let gameState = "menu";
 let player = null;
 let cameraX = 0;
 let score = 0;
-let highScore = 0;
+let highScore = loadHighScore();
 let coinsBank = 0;
 let platforms = [];
 let coins = [];
@@ -385,6 +386,29 @@ let fireballCooldown = 0;
 function clearKeys() {
     for (const code of Object.keys(keys)) {
         keys[code] = false;
+    }
+}
+
+// localStorage can be unavailable (private mode, blocked site data), so the
+// game must keep working without it.
+function loadHighScore() {
+    try {
+        const stored = Number(localStorage.getItem(highScoreStorageKey));
+        return Number.isFinite(stored) && stored > 0 ? Math.floor(stored) : 0;
+    } catch {
+        return 0;
+    }
+}
+
+function updateHighScore() {
+    if (score <= highScore) {
+        return;
+    }
+    highScore = score;
+    try {
+        localStorage.setItem(highScoreStorageKey, String(highScore));
+    } catch {
+        // Keep the in-memory high score only.
     }
 }
 
@@ -441,7 +465,7 @@ function startGame() {
 }
 
 function endRun() {
-    highScore = Math.max(highScore, score);
+    updateHighScore();
     gameState = "menu";
     shopOpen = false;
     clearKeys();
@@ -631,7 +655,7 @@ function updateCoins() {
         }
         score++;
         coinsBank++;
-        highScore = Math.max(highScore, score);
+        updateHighScore();
         safePlay(coinSound);
         return false;
     });
@@ -647,7 +671,7 @@ function updateEnemies() {
         if (katanaHitbox && rectsOverlap(katanaHitbox, enemy)) {
             enemies.splice(i, 1);
             score += 5;
-            highScore = Math.max(highScore, score);
+            updateHighScore();
             continue;
         }
 
@@ -672,7 +696,7 @@ function updateFireballs() {
             enemies.splice(j, 1);
             fireBalls.splice(i, 1);
             score += 5;
-            highScore = Math.max(highScore, score);
+            updateHighScore();
             consumed = true;
             break;
         }

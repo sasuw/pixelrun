@@ -23,6 +23,7 @@ Dein Ziel ist ein hoher Score.
 - **Feuerschwert**: kann im Shop gekauft werden.
 - **Feuerbälle**: werden nach dem Kauf mit einer Taste abgefeuert.
 - **HUD**: zeigt Score, Highscore, Guthaben und Schwert-Status.
+- **Highscore**: bleibt im Browser gespeichert, auch nach dem Neuladen der Seite.
 
 ## Steuerung
 
