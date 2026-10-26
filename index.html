@@ -2,13 +2,15 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pixel Run - Unified Edition</title>
 <style>
 body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background:
@@ -17,16 +19,116 @@ body {
 }
 
 canvas {
+    display: block;
     width: min(96vw, 960px);
     height: auto;
     image-rendering: pixelated;
     border: 4px solid #ffffff;
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
+
+#controls {
+    display: none;
+}
+
+body.touch {
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body.touch canvas {
+    width: min(100vw, calc(100dvh * 16 / 9), 960px);
+    border: none;
+    box-shadow: none;
+    touch-action: none;
+}
+
+body.touch #controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    touch-action: none;
+}
+
+@media (orientation: landscape) {
+    body.touch #controls {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+    }
+}
+
+.pad {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    pointer-events: auto;
+}
+
+.pad button {
+    width: 64px;
+    height: 64px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    background: rgba(13, 27, 42, 0.45);
+    color: #ffffff;
+    font: bold 13px monospace;
+    touch-action: none;
+}
+
+.pad button.pressed {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.pad .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pad .small {
+    width: 52px;
+    height: 52px;
+    font-size: 11px;
+}
+
+#buyButton {
+    display: none;
+}
+
+body.shop-open #buyButton {
+    display: block;
+}
 </style>
 </head>
 <body>
 <canvas id="game" width="640" height="360"></canvas>
+<div id="controls">
+    <div class="pad">
+        <button type="button" tabindex="-1" data-key="ArrowLeft" data-hold>&#9664;</button>
+        <button type="button" tabindex="-1" data-key="ArrowRight" data-hold>&#9654;</button>
+    </div>
+    <div class="pad">
+        <div class="stack">
+            <button type="button" tabindex="-1" class="small" id="buyButton" data-key="Enter">BUY</button>
+            <button type="button" tabindex="-1" class="small" data-key="KeyS">SHOP</button>
+        </div>
+        <div class="stack">
+            <button type="button" tabindex="-1" data-key="KeyF">FIRE</button>
+            <button type="button" tabindex="-1" data-key="KeyX" data-hold>SLASH</button>
+        </div>
+        <button type="button" tabindex="-1" data-key="Space" data-hold>JUMP</button>
+    </div>
+</div>
 
 <script src="game-logic.js"></script>
 <script>
@@ -251,6 +353,10 @@ const clouds = [
     { x: 620, y: 35 }
 ];
 
+const tickMs = 1000 / 30;
+const maxFrameMs = 250;
+const touchQuery = window.matchMedia ? window.matchMedia("(any-pointer: coarse)") : null;
+
 let gameState = "menu";
 let player = null;
 let cameraX = 0;
@@ -263,7 +369,10 @@ let enemies = [];
 let fireBalls = [];
 let rockWall = [];
 let lastPlatformX = 0;
-let frame = 0;
+let lastFrameTime = null;
+let tickAccumulator = 0;
+let touchMode = Boolean(touchQuery && touchQuery.matches);
+let audioUnlocked = false;
 let ninjaFrameCounter = 0;
 let shopOpen = false;
 let hasFireSword = false;
@@ -295,7 +404,6 @@ function resetCombatState() {
 function resetRun() {
     score = 0;
     cameraX = 0;
-    frame = 0;
     ninjaFrameCounter = 0;
     platforms = [];
     coins = [];
@@ -402,8 +510,7 @@ function getNinjaFrame() {
         return "jump";
     }
     if (keys.ArrowLeft || keys.ArrowRight) {
-        ninjaFrameCounter++;
-        return ninjaFrameCounter % 10 < 5 ? "run1" : "run2";
+        return ninjaFrameCounter % 6 < 3 ? "run1" : "run2";
     }
     return "idle";
 }
@@ -470,6 +577,9 @@ function updateAttackState() {
 }
 
 function updatePlayer() {
+    if (keys.ArrowLeft || keys.ArrowRight) {
+        ninjaFrameCounter++;
+    }
     if (keys.ArrowLeft) {
         player.dx -= 0.5;
         player.facing = -1;
@@ -653,10 +763,17 @@ function drawMenu() {
     ctx.font = "bold 20px monospace";
     ctx.fillText("PIXEL RUN", panelCenterX, 112);
     ctx.font = "12px monospace";
-    ctx.fillText("Press any key to start", panelCenterX, 145);
-    ctx.fillText("Arrow keys to move, Space to jump", panelCenterX, 172);
-    ctx.fillText("X / Shift to slash, F for fireball", panelCenterX, 192);
-    ctx.fillText("S opens the shop during a run", panelCenterX, 212);
+    if (touchMode) {
+        ctx.fillText("Tap to start", panelCenterX, 145);
+        ctx.fillText("Arrow buttons to move, JUMP to jump", panelCenterX, 172);
+        ctx.fillText("SLASH to attack, FIRE for fireball", panelCenterX, 192);
+        ctx.fillText("SHOP opens the shop during a run", panelCenterX, 212);
+    } else {
+        ctx.fillText("Press any key to start", panelCenterX, 145);
+        ctx.fillText("Arrow keys to move, Space to jump", panelCenterX, 172);
+        ctx.fillText("X / Shift to slash, F for fireball", panelCenterX, 192);
+        ctx.fillText("S opens the shop during a run", panelCenterX, 212);
+    }
     ctx.fillText(`Highscore: ${highScore}`, panelCenterX, 245);
     ctx.fillText(`Coins in wallet: ${coinsBank}`, panelCenterX, 265);
     ctx.textAlign = "left";
@@ -672,13 +789,13 @@ function drawShop() {
     ctx.fillText(`Fire Sword: ${shopCost} coins`, 120, 148);
     ctx.fillText(`Wallet: ${coinsBank}`, 120, 170);
     if (hasFireSword) {
-        ctx.fillText("Purchased. Press F to launch fireballs.", 120, 196);
+        ctx.fillText(touchMode ? "Purchased. Tap FIRE to launch fireballs." : "Purchased. Press F to launch fireballs.", 120, 196);
     } else if (coinsBank >= shopCost) {
-        ctx.fillText("Press Enter to buy.", 120, 196);
+        ctx.fillText(touchMode ? "Tap BUY to buy." : "Press Enter to buy.", 120, 196);
     } else {
         ctx.fillText("Collect more coins to unlock it.", 120, 196);
     }
-    ctx.fillText("Press S to close the shop.", 120, 224);
+    ctx.fillText(touchMode ? "Tap SHOP to close the shop." : "Press S to close the shop.", 120, 224);
 }
 
 function drawHud() {
@@ -769,78 +886,163 @@ function draw() {
     }
 }
 
-function update() {
-    frame++;
-
-    if (gameState !== "playing") {
-        draw();
-        requestAnimationFrame(update);
-        return;
-    }
-
-    if (frame % 2 === 0) {
-        if (!shopOpen) {
-            updateAttackState();
-            updatePlayer();
-            updateCoins();
-            updateEnemies();
-            if (gameState === "playing") {
-                updateFireballs();
-            }
-        }
-
-        if (gameState === "playing" && player.y > canvas.height) {
-            endRun();
-        }
-
+function tick() {
+    if (!shopOpen) {
+        updateAttackState();
+        updatePlayer();
+        updateCoins();
+        updateEnemies();
         if (gameState === "playing") {
-            cameraX = Math.max(0, player.x - 150);
-            platforms = platforms.filter((platform) => platform.x + platform.w > cameraX - 50);
-            coins = coins.filter((coin) => coin.x + coin.w > cameraX - 50);
-            enemies = enemies.filter((enemy) => enemy.x + enemy.w > cameraX - 50);
-            generateWorld();
-            updateRockWall();
-        }
-
-        if (fireballCooldown > 0) {
-            fireballCooldown--;
+            updateFireballs();
         }
     }
 
+    if (gameState === "playing" && player.y > canvas.height) {
+        endRun();
+    }
+
+    if (gameState === "playing") {
+        cameraX = Math.max(0, player.x - 150);
+        platforms = platforms.filter((platform) => platform.x + platform.w > cameraX - 50);
+        coins = coins.filter((coin) => coin.x + coin.w > cameraX - 50);
+        enemies = enemies.filter((enemy) => enemy.x + enemy.w > cameraX - 50);
+        generateWorld();
+        updateRockWall();
+    }
+
+    if (fireballCooldown > 0) {
+        fireballCooldown--;
+    }
+}
+
+// Run the game logic at a fixed 30 ticks per second, independent of the
+// display refresh rate (60, 90, 120 Hz ...).
+function update(now) {
+    if (lastFrameTime === null) {
+        lastFrameTime = now;
+    }
+    tickAccumulator += Math.min(now - lastFrameTime, maxFrameMs);
+    lastFrameTime = now;
+
+    while (tickAccumulator >= tickMs) {
+        tickAccumulator -= tickMs;
+        if (gameState === "playing") {
+            tick();
+        }
+    }
+
+    document.body.classList.toggle("shop-open", gameState === "playing" && shopOpen);
     draw();
     requestAnimationFrame(update);
 }
 
-document.addEventListener("keydown", (event) => {
-    keys[event.code] = true;
-
+function handleAction(code) {
     if (gameState === "menu") {
         startGame();
         return;
     }
 
-    if (event.code === "KeyS") {
+    if (code === "KeyS") {
         shopOpen = !shopOpen;
         return;
     }
 
-    if (shopOpen && event.code === "Enter") {
+    if (shopOpen && code === "Enter") {
         buyFireSword();
         return;
     }
 
-    if (event.code === "KeyF" && !shopOpen) {
+    if (code === "KeyF" && !shopOpen) {
         launchFireball();
     }
+}
+
+function setTouchMode(enabled) {
+    touchMode = enabled;
+    document.body.classList.toggle("touch", enabled);
+}
+
+// Mobile browsers only allow audio started by a user gesture. Touch
+// pointerdown does not count, so retry on pointerup and unlock the sound
+// effects once by playing them muted.
+function unlockAudio() {
+    if (gameState === "playing" && bgMusic.paused) {
+        bgMusic.play().catch(() => {});
+    }
+    if (audioUnlocked) {
+        return;
+    }
+    audioUnlocked = true;
+    for (const audio of [jumpSound, coinSound]) {
+        audio.muted = true;
+        audio.play()
+            .then(() => {
+                audio.pause();
+                audio.muted = false;
+            })
+            .catch(() => {
+                audio.muted = false;
+            });
+    }
+}
+
+document.addEventListener("keydown", (event) => {
+    keys[event.code] = true;
+    handleAction(event.code);
 });
 
 document.addEventListener("keyup", (event) => {
     keys[event.code] = false;
 });
 
+for (const button of document.querySelectorAll("#controls button")) {
+    const code = button.dataset.key;
+    const hold = button.hasAttribute("data-hold");
+
+    const release = () => {
+        button.classList.remove("pressed");
+        if (hold) {
+            keys[code] = false;
+        }
+    };
+
+    button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        button.classList.add("pressed");
+        if (hold) {
+            keys[code] = true;
+        }
+        handleAction(code);
+    });
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("pointerleave", release);
+    button.addEventListener("lostpointercapture", release);
+}
+
+canvas.addEventListener("pointerup", (event) => {
+    if (gameState === "menu") {
+        event.preventDefault();
+        startGame();
+    }
+});
+
+document.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "touch" && !touchMode) {
+        setTouchMode(true);
+    }
+});
+document.addEventListener("pointerup", unlockAudio);
+document.addEventListener("contextmenu", (event) => {
+    if (touchMode) {
+        event.preventDefault();
+    }
+});
+
+setTouchMode(touchMode);
 resetRun();
 document.body.dataset.gameReady = "1";
-update();
+requestAnimationFrame(update);
 </script>
 </body>
 </html>

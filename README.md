@@ -33,6 +33,22 @@ Dein Ziel ist ein hoher Score.
 - `Enter`: Feuerschwert im Shop kaufen
 - `F`: Feuerball schießen
 
+### Auf dem Handy oder Tablet
+
+Auf Touch-Geräten erscheinen Buttons auf dem Bildschirm:
+
+- `◀` und `▶`: bewegen
+- `JUMP`: springen
+- `SLASH`: angreifen
+- `FIRE`: Feuerball schießen
+- `SHOP`: Shop öffnen oder schließen
+- `BUY`: Feuerschwert kaufen (nur im offenen Shop)
+
+Tippe auf das Spielfeld, um zu starten.  
+Am besten spielst du im Querformat.
+
+Das Spiel läuft auf jedem Bildschirm gleich schnell, auch bei 90 oder 120 Hz.
+
 ## Spiel starten
 
 Am einfachsten startest du das Projekt mit einem kleinen lokalen Server:
