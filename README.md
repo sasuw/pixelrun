@@ -67,6 +67,19 @@ http://localhost:8000/index.html
 Direkt das HTML im Browser zu öffnen kann auch funktionieren.  
 Der lokale Server ist aber sauberer.
 
+## Als App installieren
+
+Pixel Run ist eine Progressive Web App (PWA).  
+Du kannst das Spiel wie eine App auf den Startbildschirm legen.  
+Danach startet es mit eigenem Icon im Vollbild, auch ohne Internet.
+
+- **Android (Chrome)**: Seite öffnen, Menü `⋮`, dann `App installieren` oder `Zum Startbildschirm hinzufügen`.
+- **iPhone und iPad (Safari)**: Seite öffnen, `Teilen`, dann `Zum Home-Bildschirm`.
+- **Desktop (Chrome, Edge)**: Installations-Symbol in der Adressleiste.
+
+Ohne Internet fehlen nur Musik und Sounds, weil sie von externen Seiten kommen.  
+Neue Versionen lädt die App beim nächsten Start mit Internet automatisch.
+
 ## Code-Struktur
 
 - `index.html`: Hauptdatei des Spiels. Hier sind HTML, CSS, Rendering, Eingaben, Menü, Shop und Spielschleife.
@@ -74,6 +87,9 @@ Der lokale Server ist aber sauberer.
 - `game-logic.test.js`: Tests für die ausgelagerte Spiellogik.
 - `browser-smoke.test.js`: einfacher Browser-Test. Er prüft, ob das Spiel noch startet.
 - `package.json`: kleines Node-Setup mit dem Testbefehl.
+- `manifest.webmanifest`: App-Name, Icons und Anzeige-Modus für die Installation.
+- `sw.js`: Service Worker. Er speichert die Spieldateien für den Offline-Start.
+- `icons/`: App-Icons. Sie entstehen mit `python3 scripts/generate_icons.py` (braucht Pillow).
 - `screenshots/`: Bilder aus dem Spiel.
 
 ## Tests

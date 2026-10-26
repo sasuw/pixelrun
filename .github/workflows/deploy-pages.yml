@@ -30,6 +30,8 @@ jobs:
                   mkdir -p _site
                   cp index.html _site/
                   cp game-logic.js _site/
+                  cp manifest.webmanifest sw.js _site/
+                  cp -R icons _site/
                   if [ -d screenshots ]; then
                       cp -R screenshots _site/
                   fi
