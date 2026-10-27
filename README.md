@@ -11,7 +11,7 @@ Du springst über Lücken.
 Du sammelst Münzen.  
 Du weichst Gegnern aus oder besiegst sie.  
 Dein Ziel ist ein hoher Score.
-
+Du kaufst Waffen.
 ## Spielelemente
 
 - **Spielerfigur**: läuft, springt und greift an.
