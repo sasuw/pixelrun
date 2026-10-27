@@ -307,6 +307,7 @@ const fireballCooldownFrames = 18;
 const platformLeadDistance = 900;
 const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
 const shopCost = 20;
+const doubleJumpCost = 10;
 const highScoreStorageKey = "pixelrun.highScore";
 
 const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
@@ -385,6 +386,7 @@ let audioUnlocked = false;
 let ninjaFrameCounter = 0;
 let shopOpen = false;
 let hasFireSword = false;
+let hasDoubleJump = false;
 let drawingSword = false;
 let swordProgress = 0;
 let attacking = false;
@@ -568,6 +570,15 @@ function buyFireSword() {
     hasFireSword = true;
 }
 
+function buyShopUpgrade() {
+    if (!hasDoubleJump && coinsBank >= doubleJumpCost) {
+        coinsBank -= doubleJumpCost;
+        hasDoubleJump = true;
+        return;
+    }
+    buyFireSword();
+}
+
 function launchFireball() {
     if (!hasFireSword || fireballCooldown > 0 || !player) {
         return;
@@ -620,7 +631,8 @@ function updatePlayer() {
         player.dx += 0.5;
         player.facing = 1;
     }
-    if (keys.Space && player.jumps < 2) {
+    const maxJumps = hasDoubleJump ? 2 : 1;
+    if (keys.Space && player.jumps < maxJumps) {
         player.dy = -12;
         player.jumps++;
         safePlay(jumpSound);
@@ -819,16 +831,21 @@ function drawShop() {
     ctx.font = "16px monospace";
     ctx.fillText("SHOP", 120, 112);
     ctx.font = "12px monospace";
-    ctx.fillText(`Fire Sword: ${shopCost} coins`, 120, 148);
-    ctx.fillText(`Wallet: ${coinsBank}`, 120, 170);
-    if (hasFireSword) {
-        ctx.fillText(touchMode ? "Purchased. Tap FIRE to launch fireballs." : "Purchased. Press F to launch fireballs.", 120, 196);
+    ctx.fillText(`Double jump: ${hasDoubleJump ? "UNLOCKED" : `${doubleJumpCost} coins`}`, 120, 148);
+    ctx.fillText(`Fire Sword: ${hasFireSword ? "UNLOCKED" : `${shopCost} coins`}`, 120, 168);
+    ctx.fillText(`Wallet: ${coinsBank}`, 120, 188);
+    if (!hasDoubleJump && coinsBank >= doubleJumpCost) {
+        ctx.fillText(touchMode ? "Tap BUY to unlock double jump." : "Press Enter to unlock double jump.", 120, 212);
+    } else if (!hasDoubleJump) {
+        ctx.fillText("Collect more coins for double jump.", 120, 212);
+    } else if (hasFireSword) {
+        ctx.fillText(touchMode ? "Purchased. Tap FIRE to launch fireballs." : "Purchased. Press F to launch fireballs.", 120, 212);
     } else if (coinsBank >= shopCost) {
-        ctx.fillText(touchMode ? "Tap BUY to buy." : "Press Enter to buy.", 120, 196);
+        ctx.fillText(touchMode ? "Tap BUY to buy Fire Sword." : "Press Enter to buy Fire Sword.", 120, 212);
     } else {
-        ctx.fillText("Collect more coins to unlock it.", 120, 196);
+        ctx.fillText("Collect more coins for Fire Sword.", 120, 212);
     }
-    ctx.fillText(touchMode ? "Tap SHOP to close the shop." : "Press S to close the shop.", 120, 224);
+    ctx.fillText(touchMode ? "Tap SHOP to close the shop." : "Press S to close the shop.", 120, 240);
 }
 
 function drawHud() {
@@ -981,7 +998,7 @@ function handleAction(code) {
     }
 
     if (shopOpen && code === "Enter") {
-        buyFireSword();
+        buyShopUpgrade();
         return;
     }
 
