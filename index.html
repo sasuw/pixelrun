@@ -883,12 +883,31 @@ function drawShop() {
 }
 
 function drawHud() {
-    ctx.fillStyle = "#000000";
+    ctx.save();
+
     ctx.font = "12px monospace";
-    ctx.fillText(`Score: ${score}`, 10, 14);
-    ctx.fillText(`Highscore: ${highScore}`, 10, 30);
-    ctx.fillText(`Wallet: ${coinsBank}`, 10, 46);
-    ctx.fillText(`Sword: ${hasFireSword ? "YES" : "NO"}`, 10, 62);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+
+    // Weißer Rand um schwarze Schrift
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineJoin = "round";
+
+    const hudText = [
+        [`Score: ${score}`, 10, 14],
+        [`Highscore: ${highScore}`, 10, 30],
+        [`Wallet: ${coinsBank}`, 10, 46],
+        [`Sword: ${hasFireSword ? "YES" : "NO"}`, 10, 62]
+    ];
+
+    for (const [text, x, y] of hudText) {
+        ctx.strokeText(text, x, y);
+        ctx.fillStyle = "#000000";
+        ctx.fillText(text, x, y);
+    }
+
+    ctx.restore();
 }
 
 function draw() {
