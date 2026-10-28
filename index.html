@@ -313,8 +313,13 @@ const highScoreStorageKey = "pixelrun.highScore";
 const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
 const coinSound = new Audio("https://www.myinstants.com/media/sounds/mario_coin_sound.mp3");
 const bgMusic = new Audio("https://cdn.pixabay.com/audio/2024/08/20/audio_3204534a60.mp3");
+
 bgMusic.loop = true;
-bgMusic.volume = 0.3;
+
+
+bgMusic.volume = 0.175;
+jumpSound.volume = 0.15;
+coinSound.volume = 0.15;
 
 function pauseAllAudio() {
     bgMusic.pause();
