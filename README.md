@@ -26,6 +26,7 @@ Du hast Spaß.
 - **Feuerbälle**: werden nach dem Kauf mit einer Taste abgefeuert.
 - **HUD**: zeigt Score, Highscore, Guthaben und Schwert-Status.
 - **Highscore**: bleibt im Browser gespeichert, auch nach dem Neuladen der Seite.
+- **Doppelsprung**:wird nach Kauf mit Leertaste ausgelöst.
 
 ## Steuerung
 
