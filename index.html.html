@@ -325,7 +325,8 @@ function pauseAllAudio() {
 function resumeAudio() {
     if (document.visibilityState === "visible" &&
         document.hasFocus() &&
-        gameState === "playing") {
+        gameState === "playing" &&
+        !isPaused) {
         bgMusic.play().catch(() => {});
     }
 }
@@ -397,6 +398,7 @@ const maxFrameMs = 250;
 const touchQuery = window.matchMedia ? window.matchMedia("(any-pointer: coarse)") : null;
 
 let gameState = "menu";
+let isPaused = false;
 let player = null;
 let cameraX = 0;
 let score = 0;
@@ -505,12 +507,15 @@ function resetRun() {
 function startGame() {
     resetRun();
     gameState = "playing";
+    isPaused = false;
     bgMusic.play().catch(() => {});
 }
 
 function endRun() {
     updateHighScore();
     gameState = "menu";
+    isPaused = false;
+    pauseAllAudio();
     shopOpen = false;
     clearKeys();
     resetCombatState();
@@ -883,30 +888,49 @@ function drawShop() {
 }
 
 function drawHud() {
+    // Alle Spielwerte bleiben vollständig lesbar und werden vom Hintergrund abgehoben.
     ctx.save();
-
     ctx.font = "12px monospace";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-
-    // Weißer Rand um schwarze Schrift
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "#ffffff";
     ctx.lineJoin = "round";
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#000000";
 
-    const hudText = [
-        [`Score: ${score}`, 10, 14],
-        [`Highscore: ${highScore}`, 10, 30],
-        [`Wallet: ${coinsBank}`, 10, 46],
-        [`Sword: ${hasFireSword ? "YES" : "NO"}`, 10, 62]
+    const stats = [
+        `Score: ${score}`,
+        `Highscore: ${highScore}`,
+        `Wallet: ${coinsBank}`,
+        `Sword: ${hasFireSword ? "YES" : "NO"}`
     ];
+    stats.forEach((label, index) => {
+        const y = 14 + index * 16;
+        ctx.strokeText(label, 10, y);
+        ctx.fillText(label, 10, y);
+    });
+    ctx.restore();
+}
 
-    for (const [text, x, y] of hudText) {
-        ctx.strokeText(text, x, y);
-        ctx.fillStyle = "#000000";
-        ctx.fillText(text, x, y);
-    }
+// Der Pause-Button wird direkt im Spielfeld gezeichnet.
+const pauseButtonRect = { x: canvas.width - 112, y: 8, w: 102, h: 27 };
 
+function drawPauseButton() {
+    if (gameState !== "playing") return;
+    const { x, y, w, h } = pauseButtonRect;
+    ctx.save();
+    ctx.fillStyle = isPaused ? "#176b45" : "#0d1b2a";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(isPaused ? "▶ Play" : "Ⅱ PAUSE", x + w / 2, y + h / 2);
     ctx.restore();
 }
 
@@ -987,6 +1011,29 @@ function draw() {
     for (let i = 0; i < canvas.height; i += 2) {
         ctx.fillRect(0, i, canvas.width, 1);
     }
+
+    if (isPaused) {
+        // Eigene Canvas-Zeichenwerte sichern, damit der Shop nach dem
+        // Fortsetzen wieder linksbündig und unverändert dargestellt wird.
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 32px monospace";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#ffffff";
+        ctx.fillStyle = "#000000";
+        ctx.strokeText("PAUSE", canvas.width / 2, canvas.height / 2 - 12);
+        ctx.fillText("PAUSE", canvas.width / 2, canvas.height / 2 - 12);
+        ctx.font = "14px monospace";
+        ctx.strokeText("Esc oder WEITER-Button", canvas.width / 2, canvas.height / 2 + 24);
+        ctx.fillText("Esc oder WEITER-Button", canvas.width / 2, canvas.height / 2 + 24);
+        ctx.restore();
+    }
+
+    // Zuletzt zeichnen, damit der Button auch während der Pause sichtbar bleibt.
+    drawPauseButton();
 }
 
 function tick() {
@@ -1029,7 +1076,7 @@ function update(now) {
 
     while (tickAccumulator >= tickMs) {
         tickAccumulator -= tickMs;
-        if (gameState === "playing") {
+        if (gameState === "playing" && !isPaused) {
             tick();
         }
     }
@@ -1039,7 +1086,24 @@ function update(now) {
     requestAnimationFrame(update);
 }
 
+function togglePause() {
+    if (gameState !== "playing") return;
+    isPaused = !isPaused;
+    clearKeys();
+    pauseAllAudio();
+    if (!isPaused) {
+        resumeAudio();
+    }
+}
+
 function handleAction(code) {
+    if (code === "Escape") {
+        if (gameState === "playing") togglePause();
+        return;
+    }
+
+    if (isPaused) return;
+
     if (gameState === "menu") {
         startGame();
         return;
@@ -1069,7 +1133,7 @@ function setTouchMode(enabled) {
 // pointerdown does not count, so retry on pointerup and unlock the sound
 // effects once by playing them muted.
 function unlockAudio() {
-    if (gameState === "playing" && bgMusic.paused) {
+    if (gameState === "playing" && !isPaused && bgMusic.paused) {
         bgMusic.play().catch(() => {});
     }
     if (audioUnlocked) {
@@ -1090,6 +1154,11 @@ function unlockAudio() {
 }
 
 document.addEventListener("keydown", (event) => {
+    if (event.code === "Escape") {
+        event.preventDefault();
+        if (!event.repeat) handleAction(event.code);
+        return;
+    }
     keys[event.code] = true;
     handleAction(event.code);
 });
@@ -1097,6 +1166,7 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("keyup", (event) => {
     keys[event.code] = false;
 });
+
 
 for (const button of document.querySelectorAll("#controls button")) {
     const code = button.dataset.key;
@@ -1124,6 +1194,18 @@ for (const button of document.querySelectorAll("#controls button")) {
 }
 
 canvas.addEventListener("pointerup", (event) => {
+    // CSS-skaliertes Canvas in seine internen Spielkoordinaten umrechnen.
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+    const b = pauseButtonRect;
+
+    if (gameState === "playing" && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        event.preventDefault();
+        togglePause();
+        return;
+    }
+
     if (gameState === "menu") {
         event.preventDefault();
         startGame();
