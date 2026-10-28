@@ -551,17 +551,20 @@ function generateWorld() {
     }
 
     while (lastPlatformX < cameraX + platformLeadDistance) {
-        const width = 48 + Math.random() * 48;
-        const gap = 28 + Math.random() * 44;
-        const height = 140 + Math.random() * 110;
+        // Der Schwierigkeitsgrad steigt mit der zurückgelegten Strecke und bleibt begrenzt.
+        const difficulty = Math.min(cameraX / 12000, 1);
+        const width = (48 - difficulty * 18) + Math.random() * 48;
+        const gap = 28 + Math.random() * (44 + difficulty * 38);
+        const height = 140 + Math.random() * (110 + difficulty * 25);
         const platform = { x: lastPlatformX + gap, y: height, w: width, h: 10 };
 
         platforms.push(platform);
 
-        if (Math.random() < 0.68) {
+        // Mit der Zeit erscheinen etwas weniger Münzen und mehr Gegner.
+        if (Math.random() < 0.68 - difficulty * 0.18) {
             coins.push({ x: platform.x + width / 2 - 3, y: platform.y - 12, w: 6, h: 6 });
         }
-        if (Math.random() < 0.18) {
+        if (Math.random() < 0.18 + difficulty * 0.27) {
             enemies.push(createEnemyForPlatform(
                 platform,
                 Math.random() < 0.5 ? -1 : 1
@@ -682,7 +685,9 @@ function updatePlayer() {
     }
 
     const previousBottom = player.y + player.h;
-    player.dy += gravity;
+    // Sprünge werden auf längeren Runs etwas anspruchsvoller.
+    const difficulty = Math.min(cameraX / 16000, 1);
+    player.dy += gravity + difficulty * 0.18;
     player.x += player.dx;
     player.y += player.dy;
     player.dx *= friction;
