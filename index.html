@@ -452,6 +452,11 @@ function updateHighScore() {
 }
 
 function safePlay(audio) {
+    if (document.visibilityState !== "visible" ||
+        !document.hasFocus()) {
+        return;
+    }
+
     audio.currentTime = 0;
     audio.play().catch(() => {});
 }
