@@ -316,6 +316,35 @@ const bgMusic = new Audio("https://cdn.pixabay.com/audio/2024/08/20/audio_320453
 bgMusic.loop = true;
 bgMusic.volume = 0.3;
 
+function pauseAllAudio() {
+    bgMusic.pause();
+    jumpSound.pause();
+    coinSound.pause();
+}
+
+function resumeAudio() {
+    if (document.visibilityState === "visible" &&
+        document.hasFocus() &&
+        gameState === "playing") {
+        bgMusic.play().catch(() => {});
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+        pauseAllAudio();
+        clearKeys();
+    } else {
+        resumeAudio();
+    }
+});
+
+window.addEventListener("blur", () => {
+    pauseAllAudio();
+    clearKeys();
+});
+
+window.addEventListener("focus", resumeAudio);
 const ninjaSkin = {
     idle: [
         ["", "#000", "#000", ""],
