@@ -7,6 +7,9 @@ safe zone, so the same artwork also works as a maskable icon.
 """
 
 import argparse
+import base64
+import re
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image
@@ -14,17 +17,15 @@ from PIL import Image
 GRID = 16
 SKY_TOP = (0x87, 0xCE, 0xEB)
 SKY_BOTTOM = (0xC0, 0xE0, 0xFF)
-PLATFORM = (0x8B, 0x45, 0x13)
-PLATFORM_TOP = (0x5A, 0x2E, 0x0C)
 NINJA = (0x00, 0x00, 0x00)
-BAND = (0xFF, 0x00, 0x00)
+BAND = (0x00, 0xC8, 0x53)
 KATANA = (0xCC, 0xCC, 0xCC)
 
-# Same shape as ninjaSkin.idle in index.html: K = body, R = red band.
+# Same shape and colors as ninjaSkin.idle in index.html: K = body, G = green band.
 NINJA_SPRITE = [
     ".KK.",
     "KKKK",
-    "KRRK",
+    "KGGK",
     "KK.K",
 ]
 
@@ -37,6 +38,16 @@ ICONS = {
 }
 
 
+def load_platform_texture():
+    html_path = Path(__file__).resolve().parent.parent / "index.html"
+    html = html_path.read_text(encoding="utf-8")
+    match = re.search(r'platformTexture\.src = "data:image/png;base64,([^"]+)"', html)
+    if not match:
+        raise ValueError("Could not find the game's platform texture in index.html")
+    image_data = base64.b64decode(match.group(1))
+    return Image.open(BytesIO(image_data)).convert("RGB")
+
+
 def draw_grid():
     grid = Image.new("RGB", (GRID, GRID))
     for y in range(GRID):
@@ -45,11 +56,9 @@ def draw_grid():
         for x in range(GRID):
             grid.putpixel((x, y), color)
 
-    # Platform: rows 12-15, dark top edge.
-    for x in range(GRID):
-        grid.putpixel((x, 12), PLATFORM_TOP)
-        for y in range(13, GRID):
-            grid.putpixel((x, y), PLATFORM)
+    # Use the game's own platform texture, scaled to the icon's pixel grid.
+    platform = load_platform_texture().resize((GRID, 4), Image.NEAREST)
+    grid.paste(platform, (0, 12))
 
     # Ninja: each sprite pixel is 2x2 grid cells, standing on the platform.
     left, top = 4, 4
@@ -57,7 +66,7 @@ def draw_grid():
         for col, cell in enumerate(line):
             if cell == ".":
                 continue
-            color = BAND if cell == "R" else NINJA
+            color = BAND if cell == "G" else NINJA
             for dy in range(2):
                 for dx in range(2):
                     grid.putpixel((left + col * 2 + dx, top + row * 2 + dy), color)
