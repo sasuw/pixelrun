@@ -313,13 +313,16 @@ const highScoreStorageKey = "pixelrun.highScore";
 const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
 const coinSound = new Audio("https://www.myinstants.com/media/sounds/mario_coin_sound.mp3");
 const bgMusic = new Audio("https://cdn.pixabay.com/audio/2024/08/20/audio_3204534a60.mp3");
-
 bgMusic.loop = true;
+// Alle Sounds und die Musik sind um 25 % leiser.
+jumpSound.volume = 0.75;
+coinSound.volume = 0.75;
+bgMusic.volume = 0.225;
 
-
-bgMusic.volume = 0.175;
-jumpSound.volume = 0.15;
-coinSound.volume = 0.15;
+const platformTexture = new Image();
+platformTexture.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAESElEQVR4nO2YTUgjZxjHfyNSquhEqqyJusFlpS4Yq7uu3VAprWuLSLqHFraggfa0eOmlLBR66aW3QumlFDy2YAs9bAs2iGzTVhaLGj8ixlLbiCGmmSjursZglm2X6SF5x5nMJJm1tj2sfxgy87z/5/N93meGwCkgoF5Xn1SZdHOzQ91NZgHweFwGYureHs5n6ohEFAAamqoANFlDU5XhHkBvKxJRDL/CZiF2k1k8HpfmT/B2k1nNbjnberuCp49PcPU5pO7tUSGUbr7wiimwt1v7bMmsdAflDlsyK3snzSsVn1aAj3/+3kT6PDZjS2alO5VesyWzsnfSvFLxSTdmn1OV1QNqmqrI5FvH1VnLwd2/AKitr6RwvUbXloWyTDKr6WeSWYOeFU9ZPTDJhU5NU5XmX9isra80JCJiK9QVtsVabX2lpq/PrYInHKcFKLX4h/LniTrblyrLk/4lm79GspbyyooPO7kfT1Hb0Mij9D7phw9odjuRDlXwh8i876G5WiKe2sPtrMPlainpSFES8C1csOAFvbe48M01AG7PLdDsdnI/nsLjdtLV0XVE/B3GJ6dodjtJH6o8Su+TkR1IQEW1BKDFw+vzOD67CIADiMRTyE89TUZ20JznpvO57H9wDkl24MjnI8mO4h3wYm83AI2frpjWLj3fY7oE9AWy4uy9+x0Ar165DIB/aNCYfB7F5Fao+ihsi9f+RcwkM/WPf2jQ8Lz9ThdytZGzNL9oy6GJ54W6T14z8VraWk2yRDQG5DZiIjhtWr9y0ZPrNiD7XnfRGM40tZKObgKw/lYrdbJxXSuA2PFCCHk8lQtifWOL9vNnizoUQSlKouRxuT23gMftBI6StQO9TZerhV+Yt+S1tZ0z3CcIWfIMR6ClrdVw6XFt4CXbQRbDwOwbJtn45FRJnTuhMADt588WLby+KFe9Xi5f6rbkWckNR8C0E8+WjM0EsfvlMLcceTzDeehnjUCQW0CuCMJ/b695dvzE10CuG3aSMU2uFeBOKFz0GABMBKdzUxdjopF4CndDo+XurG9sEd/dxuN2luQVw8qacQBbzZ4BzF0VCpkH98u8aenjxF7M6xtbyPnXTilYdcnK2grpQ5X47jYA7oZG02bYnT0/zM5y1estyotGNw1xlvwQGv7thhbgf41ys+GkYOiAieA06YcP8OQ/QORqyfa7+P+E3dmzsBSmTnYYZBVjgXFpZjUoAUwuBrT7r378UoKjKVwOgj8WGJfGAuPlz4KF/sxqUPNvhfWNLRQlgaIkmFuOGBIXPmdWg9LCUphodJOdZIydZIxo/jvACloHiAT+CY6TuBVELB633/R3ViHmliNMLga04hfaGPXlbCwshY8XzHD/iBbEqM+vimdhuBz6OgfUUZ9f7escMOnZsTHcP6IO9fjUwliEzG4OQz0+dajHpw73j6ijPr92b9eG7YAfR89uAY7j8xQ28TckiDioJDDYuAAAAABJRU5ErkJggg==";
+const coinTexture = new Image();
+coinTexture.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAALCAYAAABGbhwYAAABhGlDQ1BJQ0MgUHJvZmlsZQAAeJx1kT9Iw0AUxr+2SkUqFhERKZghOtmlijhKFYvQSmkrVHFJLrUtNGm4pLg4Cq4FB9HFf4ujky4ODq5OgiKIs7iKLlriu0RskeYgeb98vPfl7jsgeFFjutUzD+iGzXOppFRcW5fCb+hHDEMIYVxhlpnJLxXguz4fEBD1Pi68/Pu6rgGtZDEgIBGvMJPbxCbx7JZtCj4nHmYVRSO+Jp7itEHiV6GrHn8LLrscjArmhdwCsUwcLXew2sGswnXiGWJZ0w3yDxY91gRvEyf0WoP97lOcMFIyVvNCpyeGFJaRQRYSVDRQRQ024lQNUtJuLUEBpy8LOepOUsbd/cZcvyy5qORSBaOZRdSh07zwgbiT/1lbm9MJzylCzr0vjvM+AYT3gFbTcb5OHKd1CoSegRujPV8/BuY+SG+2NfkIGNwBLm/bmroPXO0Co0+mwpW/26J/e7nRConX2SNQoKzSd8DBITBZJq8Nn3P2debm0zPi9vjk9wN1vHRBLsMQbgAAAH5JREFUeJyNkMENQEAQRf8XFxqRaEMD9EE3+qABbWyiEY7jMGuMWOIdNjvZlz+zQ0S2AEGCsgYB6LEFSLGmNIUdyJvUCjDwMhonyxRbtq7zrPJeAWdIZo9n0uwSHdmtepGe4ge/xdxujQ7vsW0scY/28xQLwBG06aVPyxw17AD0bB89c0vb9QAAAABJRU5ErkJggg==";
 
 function pauseAllAudio() {
     bgMusic.pause();
@@ -355,31 +358,31 @@ const ninjaSkin = {
     idle: [
         ["", "#000", "#000", ""],
         ["#000", "#000", "#000", "#000"],
-        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#00c853", "#00c853", "#000"],
         ["#000", "#000", "", "#000"]
     ],
     run1: [
         ["", "#000", "#000", ""],
         ["#000", "#000", "#000", "#000"],
-        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#00c853", "#00c853", "#000"],
         ["#000", "", "#000", "#000"]
     ],
     run2: [
         ["", "#000", "#000", ""],
         ["#000", "#000", "#000", "#000"],
-        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#00c853", "#00c853", "#000"],
         ["", "#000", "#000", "#000"]
     ],
     jump: [
         ["", "#000", "#000", ""],
         ["#000", "#000", "#000", "#000"],
-        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#00c853", "#00c853", "#000"],
         ["#000", "#000", "", "#000"]
     ],
     attack: [
         ["", "#000", "#000", ""],
         ["#000", "#000", "#000", "#000"],
-        ["#000", "#ff0000", "#ff0000", "#000"],
+        ["#000", "#00c853", "#00c853", "#000"],
         ["#000", "#000", "", "#000"]
     ]
 };
@@ -777,13 +780,46 @@ function updateFireballs() {
 }
 
 function drawEnemy(x, y) {
-    ctx.fillStyle = "#8B0000";
-    ctx.fillRect(x, y, 10, 10);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(x + 2, y + 2, 2, 2);
-    ctx.fillRect(x + 6, y + 2, 2, 2);
-    ctx.fillStyle = "#000";
-    ctx.fillRect(x + 3, y + 7, 4, 1);
+    // Kleines Fels-Schleim-Monster passend zu Gras, Ranken und Steinplattformen.
+    // Die Zeichnung bleibt innerhalb der vorhandenen 10x10-Gegnerfläche,
+    // damit Trefferboxen und Gegnerbewegung unverändert funktionieren.
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+
+    // Kleine Stacheln und Schatten
+    ctx.fillStyle = "#202033";
+    ctx.fillRect(x + 1, y + 2, 2, 2);
+    ctx.fillRect(x + 7, y + 1, 2, 3);
+    ctx.fillRect(x + 2, y, 2, 2);
+    ctx.fillRect(x + 6, y + 7, 3, 2);
+
+    // Körper mit steinigen violett-braunen Pixeln
+    ctx.fillStyle = "#302b46";
+    ctx.fillRect(x + 1, y + 3, 8, 5);
+    ctx.fillStyle = "#51445f";
+    ctx.fillRect(x + 2, y + 2, 6, 5);
+    ctx.fillStyle = "#756078";
+    ctx.fillRect(x + 3, y + 3, 2, 2);
+    ctx.fillStyle = "#3c354f";
+    ctx.fillRect(x + 1, y + 6, 7, 2);
+    ctx.fillStyle = "#8d6c78";
+    ctx.fillRect(x + 6, y + 5, 2, 1);
+
+    // Leuchtende moosgrüne Details, damit es zur Plattform passt
+    ctx.fillStyle = "#70df43";
+    ctx.fillRect(x + 2, y + 2, 2, 1);
+    ctx.fillRect(x + 7, y + 4, 1, 1);
+
+    // Augen und kleiner Mund
+    ctx.fillStyle = "#ffefb0";
+    ctx.fillRect(x + 2, y + 4, 2, 2);
+    ctx.fillRect(x + 6, y + 4, 2, 2);
+    ctx.fillStyle = "#f04445";
+    ctx.fillRect(x + 3, y + 4, 1, 2);
+    ctx.fillRect(x + 6, y + 4, 1, 2);
+    ctx.fillStyle = "#171523";
+    ctx.fillRect(x + 4, y + 7, 2, 1);
+    ctx.restore();
 }
 
 function drawKatana(x, y) {
@@ -944,24 +980,128 @@ function drawPauseButton() {
     ctx.restore();
 }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+function drawJungleBackground() {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#87CEEB");
-    gradient.addColorStop(1, "#C0E0FF");
+    gradient.addColorStop(0, "#183f32");
+    gradient.addColorStop(0.58, "#286347");
+    gradient.addColorStop(1, "#102d28");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const waterHeight = 40;
-    const waveOffset = (Date.now() * 0.005) % 20;
-    for (let y = canvas.height - waterHeight; y < canvas.height; y += 4) {
-        ctx.fillStyle = "rgba(0,100,255,0.6)";
-        for (let x = 0; x < canvas.width; x += 8) {
-            const wave = Math.sin((x + waveOffset) / 10) * 3;
-            ctx.fillRect(x, y + wave, 8, 4);
+    // Helle Lichtlücken im Blätterdach und feuchter Dunst geben dem Wald Tiefe.
+    const light = ctx.createRadialGradient(canvas.width * 0.68, 92, 8, canvas.width * 0.68, 92, 230);
+    light.addColorStop(0, "rgba(190, 220, 111, 0.19)");
+    light.addColorStop(1, "rgba(190, 220, 111, 0)");
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, canvas.width, canvas.height * 0.72);
+    ctx.fillStyle = "rgba(127, 174, 91, 0.08)";
+    ctx.fillRect(0, canvas.height * 0.48, canvas.width, 34);
+
+    // Ferne, dichte Baumreihen geben dem Level Tiefe.
+    for (let layer = 0; layer < 3; layer++) {
+        const spacing = 58 + layer * 19;
+        const drift = (cameraX * (0.12 + layer * 0.08)) % spacing;
+        for (let x = -spacing - drift; x < canvas.width + spacing; x += spacing) {
+            const treeX = Math.round(x);
+            const top = 18 + ((Math.floor((x + drift) / spacing) * 17 + layer * 23) % 34);
+            ctx.fillStyle = ["#164333", "#1b503b", "#236044"][layer];
+            ctx.fillRect(treeX + spacing * 0.38, top + 24, 9, canvas.height - top - 24);
+            ctx.fillRect(treeX + spacing * 0.12, top + 13, spacing * 0.76, 18);
+            ctx.fillRect(treeX + spacing * 0.24, top + 3, spacing * 0.54, 17);
+            ctx.fillRect(treeX + spacing * 0.34, top - 5, spacing * 0.34, 12);
         }
     }
+
+    // Farnartige Büsche und breite Blätter zwischen den Baumstämmen.
+    const bushSpacing = 47;
+    const bushDrift = (cameraX * 0.22) % bushSpacing;
+    for (let x = -bushSpacing - bushDrift; x < canvas.width + bushSpacing; x += bushSpacing) {
+        const baseY = canvas.height - 61 + (Math.floor((x + bushDrift) / bushSpacing) % 3) * 5;
+        const bushX = Math.round(x);
+        ctx.fillStyle = "#174c35";
+        ctx.fillRect(bushX + 3, baseY + 11, 34, 14);
+        ctx.fillStyle = "#287044";
+        ctx.fillRect(bushX + 7, baseY + 5, 8, 13);
+        ctx.fillRect(bushX + 17, baseY, 8, 18);
+        ctx.fillRect(bushX + 27, baseY + 7, 8, 11);
+        ctx.fillStyle = "#6b9d43";
+        ctx.fillRect(bushX + 9, baseY + 7, 3, 7);
+        ctx.fillRect(bushX + 20, baseY + 3, 3, 8);
+    }
+
+    // Blätterdach am oberen Rand.
+    ctx.fillStyle = "#102e25";
+    ctx.fillRect(0, 0, canvas.width, 13);
+    for (let x = -12; x < canvas.width + 20; x += 24) {
+        const sway = Math.sin(Date.now() / 900 + x) * 2;
+        ctx.fillStyle = x % 48 === 0 ? "#1c563b" : "#245f3e";
+        ctx.fillRect(x + sway, 5, 18, 10);
+        ctx.fillRect(x + 4 + sway, 0, 12, 9);
+    }
+
+    // Lianen hängen in gleichmäßigen Abständen vom Blätterdach.
+    const vineSpacing = 112;
+    const vineDrift = (cameraX * 0.32) % vineSpacing;
+    for (let x = -vineSpacing - vineDrift; x < canvas.width + vineSpacing; x += vineSpacing) {
+        const vineX = Math.round(x);
+        const seed = Math.floor((x + vineDrift) / vineSpacing);
+        const length = 74 + Math.abs((seed * 37) % 145);
+        const bend = (seed % 2 ? 1 : -1) * (11 + Math.abs((seed * 13) % 17));
+        ctx.strokeStyle = "#597c2b";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(vineX, 8);
+        ctx.quadraticCurveTo(vineX + bend, length * 0.52, vineX + bend * 0.35, length);
+        ctx.stroke();
+        for (let leafY = 28; leafY < length - 4; leafY += 25) {
+            const leafX = vineX + bend * (leafY / length) * 0.8;
+            const side = (Math.floor(leafY / 25) + seed) % 2 ? 1 : -1;
+            ctx.fillStyle = leafY % 2 ? "#79a83b" : "#4f8b36";
+            ctx.fillRect(leafX + (side < 0 ? -12 : 3), leafY, 9, 4);
+            ctx.fillRect(leafX + (side < 0 ? -13 : 8), leafY - 2, 5, 4);
+        }
+    }
+
+    // Kleine Glühwürmchen sorgen für Bewegung in den dunklen Bereichen.
+    for (let i = 0; i < 9; i++) {
+        const fireflyX = (i * 83 + Math.sin(Date.now() / 900 + i * 2) * 15 + canvas.width) % canvas.width;
+        const fireflyY = 92 + (i * 47) % (canvas.height - 150) + Math.sin(Date.now() / 700 + i) * 5;
+        const glow = 0.35 + (Math.sin(Date.now() / 260 + i * 3) + 1) * 0.25;
+        ctx.fillStyle = `rgba(220, 242, 125, ${glow})`;
+        ctx.fillRect(Math.round(fireflyX), Math.round(fireflyY), 3, 3);
+        ctx.fillStyle = `rgba(220, 242, 125, ${glow * 0.16})`;
+        ctx.fillRect(Math.round(fireflyX - 2), Math.round(fireflyY - 2), 7, 7);
+    }
+
+    // Große Blätter rahmen die Szene am unteren Rand ein.
+    ctx.fillStyle = "#123b2b";
+    for (let i = 0; i < 7; i++) {
+        const leafX = i * 105 - 18;
+        const leafY = canvas.height - 27 + Math.sin(Date.now() / 800 + i) * 2;
+        ctx.save();
+        ctx.translate(leafX, leafY);
+        ctx.rotate((i % 2 ? -1 : 1) * 0.22);
+        ctx.fillRect(0, 0, 45, 8);
+        ctx.fillRect(8, -5, 29, 6);
+        ctx.restore();
+    }
+
+    // Dunkler Sumpf am unteren Bildrand statt des bisherigen blauen Wassers.
+    const swamp = ctx.createLinearGradient(0, canvas.height - 44, 0, canvas.height);
+    swamp.addColorStop(0, "rgba(21, 75, 53, 0.35)");
+    swamp.addColorStop(1, "rgba(8, 38, 34, 0.92)");
+    ctx.fillStyle = swamp;
+    ctx.fillRect(0, canvas.height - 44, canvas.width, 44);
+    const rippleOffset = (Date.now() * 0.004) % 32;
+    ctx.fillStyle = "rgba(113, 159, 79, 0.35)";
+    for (let x = -32 - rippleOffset; x < canvas.width; x += 32) {
+        ctx.fillRect(x, canvas.height - 14 + Math.sin((x + rippleOffset) / 13) * 2, 17, 2);
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawJungleBackground();
 
     for (const column of rockWall) {
         for (let y = 0; y < column.col.length; y++) {
@@ -970,33 +1110,39 @@ function draw() {
         }
     }
 
-    for (const cloud of clouds) {
-        const cloudX = cloud.x - cameraX * 0.5;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(cloudX, cloud.y, 16, 8);
-        ctx.fillRect(cloudX + 8, cloud.y - 4, 16, 8);
-        ctx.fillRect(cloudX + 16, cloud.y, 16, 8);
-    }
-
     if (gameState === "menu") {
         drawMenu();
         return;
     }
 
     for (const platform of platforms) {
-        for (let i = 0; i < platform.w; i += 8) {
-            ctx.fillStyle = "#8B4513";
-            ctx.fillRect(platform.x - cameraX + i, platform.y, 8, 8);
-            ctx.fillStyle = "#5A2E0C";
-            ctx.fillRect(platform.x - cameraX + i, platform.y + 4, 8, 4);
+        const screenX = Math.round(platform.x - cameraX);
+        const topY = Math.round(platform.y);
+        if (platformTexture.complete && platformTexture.naturalWidth > 0) {
+            // Tile the crisp pixel-art grass-and-stone texture without smoothing.
+            ctx.imageSmoothingEnabled = false;
+            for (let i = 0; i < platform.w; i += platformTexture.naturalWidth) {
+                const drawW = Math.min(platformTexture.naturalWidth, platform.w - i);
+                ctx.drawImage(platformTexture, 0, 0, drawW, platformTexture.naturalHeight,
+                    screenX + i, topY - 2, drawW, 16);
+            }
+        } else {
+            ctx.fillStyle = "#62c72d";
+            ctx.fillRect(screenX, topY - 2, platform.w, 4);
+            ctx.fillStyle = "#59415a";
+            ctx.fillRect(screenX, topY + 2, platform.w, 10);
         }
     }
 
     for (const coin of coins) {
-        ctx.fillStyle = "#FFD700";
-        ctx.fillRect(coin.x - cameraX, coin.y, coin.w, coin.h);
-        ctx.fillStyle = "#FFF3B0";
-        ctx.fillRect(coin.x - cameraX + 1, coin.y + 1, 2, 2);
+        if (coinTexture.complete && coinTexture.naturalWidth > 0) {
+            ctx.drawImage(coinTexture, coin.x - cameraX - 2, coin.y - 3, 10, 11);
+        } else {
+            ctx.fillStyle = "#FFD700";
+            ctx.fillRect(coin.x - cameraX, coin.y, coin.w, coin.h);
+            ctx.fillStyle = "#FFF3B0";
+            ctx.fillRect(coin.x - cameraX + 1, coin.y + 1, 2, 2);
+        }
     }
 
     for (const enemy of enemies) {
