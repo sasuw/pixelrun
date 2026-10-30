@@ -141,7 +141,7 @@ body.shop-open #buyButton {
 <script src="game-logic.js"></script>
 <script>
 function createFallbackGameLogic() {
-    const defaultEnemySize = { w: 10, h: 10 };
+    const defaultEnemySize = { w: 16, h: 16 };
     const defaultEnemyInset = 5;
     const defaultStarterPlatform = {
         width: 128,
@@ -391,7 +391,7 @@ const playerCollisionMasks = Object.fromEntries(
     Object.entries(ninjaSkin).map(([frameName, skin]) => [frameName, createSpriteMask(skin, 3)])
 );
 const coinCollisionMask = createSolidMask(6, 6);
-const enemyCollisionMask = createSolidMask(10, 10);
+const enemyCollisionMask = createSolidMask(16, 16);
 
 const keys = {};
 const clouds = [
@@ -575,7 +575,8 @@ function generateWorld() {
         if (Math.random() < 0.18 + difficulty * 0.27) {
             enemies.push(createEnemyForPlatform(
                 platform,
-                Math.random() < 0.5 ? -1 : 1
+                Math.random() < 0.5 ? -1 : 1,
+                { enemySize: { w: 16, h: 16 } }
             ));
         }
 
@@ -780,11 +781,13 @@ function updateFireballs() {
 }
 
 function drawEnemy(x, y) {
-    // Kleines Fels-Schleim-Monster passend zu Gras, Ranken und Steinplattformen.
-    // Die Zeichnung bleibt innerhalb der vorhandenen 10x10-Gegnerfläche,
-    // damit Trefferboxen und Gegnerbewegung unverändert funktionieren.
+    // Größeres Fels-Schleim-Monster; die Pixelgrafik wird gleichmäßig skaliert.
     ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(1.6, 1.6);
     ctx.imageSmoothingEnabled = false;
+    x = 0;
+    y = 0;
 
     // Kleine Stacheln und Schatten
     ctx.fillStyle = "#202033";
@@ -802,6 +805,11 @@ function drawEnemy(x, y) {
     ctx.fillRect(x + 3, y + 3, 2, 2);
     ctx.fillStyle = "#3c354f";
     ctx.fillRect(x + 1, y + 6, 7, 2);
+    // Unterkante schließen, damit die Gegner-Textur bis ganz nach unten reicht.
+    ctx.fillStyle = "#202033";
+    ctx.fillRect(x + 1, y + 8, 7, 1);
+    ctx.fillStyle = "#51445f";
+    ctx.fillRect(x + 2, y + 8, 5, 1);
     ctx.fillStyle = "#8d6c78";
     ctx.fillRect(x + 6, y + 5, 2, 1);
 

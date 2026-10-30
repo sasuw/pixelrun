@@ -14,7 +14,7 @@ from pathlib import Path
 
 from PIL import Image
 
-GRID = 16
+GRID = 64
 SKY_TOP = (0x87, 0xCE, 0xEB)
 SKY_BOTTOM = (0xC0, 0xE0, 0xFF)
 NINJA = (0x00, 0x00, 0x00)
@@ -56,24 +56,25 @@ def draw_grid():
         for x in range(GRID):
             grid.putpixel((x, y), color)
 
-    # Use the game's own platform texture, scaled to the icon's pixel grid.
-    platform = load_platform_texture().resize((GRID, 4), Image.NEAREST)
-    grid.paste(platform, (0, 12))
+    # Match the game's platform draw size so the texture details remain visible.
+    platform = load_platform_texture().resize((GRID, 16), Image.NEAREST)
+    grid.paste(platform, (0, 48))
 
-    # Ninja: each sprite pixel is 2x2 grid cells, standing on the platform.
-    left, top = 4, 4
+    # Ninja: each sprite pixel is 8x8 grid cells, standing on the platform.
+    left, top = 16, 16
     for row, line in enumerate(NINJA_SPRITE):
         for col, cell in enumerate(line):
             if cell == ".":
                 continue
             color = BAND if cell == "G" else NINJA
-            for dy in range(2):
-                for dx in range(2):
-                    grid.putpixel((left + col * 2 + dx, top + row * 2 + dy), color)
+            for dy in range(8):
+                for dx in range(8):
+                    grid.putpixel((left + col * 8 + dx, top + row * 8 + dy), color)
 
     # Katana held up from the right hand.
-    for y in range(3, 8):
-        grid.putpixel((11, y), KATANA)
+    for y in range(12, 32):
+        for dx in range(2):
+            grid.putpixel((44 + dx, y), KATANA)
     return grid
 
 
