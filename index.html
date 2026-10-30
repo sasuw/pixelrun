@@ -109,11 +109,23 @@ body.touch #controls {
     font-size: 11px;
 }
 
-#buyButton {
+body.shop-open .shop-buy-button {
+    display: block;
+}
+
+body.touch #swordBuyButton {
     display: none;
 }
 
-body.shop-open #buyButton {
+body.touch #jumpBuyButton {
+    display: none;
+}
+
+#skinsButton {
+    display: none;
+}
+
+body.shop-open #skinsButton {
     display: block;
 }
 </style>
@@ -127,8 +139,10 @@ body.shop-open #buyButton {
     </div>
     <div class="pad">
         <div class="stack">
-            <button type="button" tabindex="-1" class="small" id="buyButton" data-key="Enter">BUY</button>
+            <button type="button" tabindex="-1" class="small shop-buy-button" id="jumpBuyButton" data-key="Digit1">JUMP</button>
+            <button type="button" tabindex="-1" class="small shop-buy-button" id="swordBuyButton" data-key="Digit2">SWORD</button>
             <button type="button" tabindex="-1" class="small" data-key="KeyS">SHOP</button>
+            <button type="button" tabindex="-1" class="small" id="skinsButton" data-key="KeyK">SKINS</button>
         </div>
         <div class="stack">
             <button type="button" tabindex="-1" data-key="KeyF">FIRE</button>
@@ -309,6 +323,25 @@ const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
 const shopCost = 20;
 const doubleJumpCost = 10;
 const highScoreStorageKey = "pixelrun.highScore";
+const skinStorageKey = "pixelrun.skins";
+const skinCatalog = [
+    { id: "ninja", name: "Classic Ninja", color: "#00c853", price: 0, accent: "#161616" },
+    { id: "ember", name: "Ember Ninja", color: "#ff7043", price: 25, accent: "#351b15" },
+    { id: "frost", name: "Frost Ninja", color: "#64d8ff", price: 40, accent: "#102c48" },
+    { id: "royal", name: "Royal Ninja", color: "#c77dff", price: 60, accent: "#28123d" }
+];
+
+function loadOwnedSkins() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(skinStorageKey) || "null");
+        if (Array.isArray(saved)) {
+            return [...new Set(["ninja", ...saved.filter((id) => skinCatalog.some((skin) => skin.id === id))])];
+        }
+    } catch {
+        // Skins remain usable for this session if storage is unavailable.
+    }
+    return ["ninja"];
+}
 
 const jumpSound = new Audio("https://www.myinstants.com/media/sounds/maro-jump-sound-effect_1.mp3");
 const coinSound = new Audio("https://www.myinstants.com/media/sounds/mario_coin_sound.mp3");
@@ -428,6 +461,9 @@ let touchMode = Boolean(touchQuery && touchQuery.matches);
 let audioUnlocked = false;
 let ninjaFrameCounter = 0;
 let shopOpen = false;
+let skinShopOpen = false;
+let ownedSkins = loadOwnedSkins();
+let selectedSkinId = ownedSkins[0];
 let hasFireSword = false;
 let hasDoubleJump = false;
 let drawingSword = false;
@@ -498,6 +534,7 @@ function resetRun() {
     rockWall = [];
     lastPlatformX = 0;
     shopOpen = false;
+    skinShopOpen = false;
     player = {
         x: playerSpawn.x,
         y: playerSpawn.y,
@@ -640,13 +677,26 @@ function buyFireSword() {
     hasFireSword = true;
 }
 
-function buyShopUpgrade() {
-    if (!hasDoubleJump && coinsBank >= doubleJumpCost) {
-        coinsBank -= doubleJumpCost;
-        hasDoubleJump = true;
+function buyDoubleJump() {
+    if (hasDoubleJump || coinsBank < doubleJumpCost) return;
+    coinsBank -= doubleJumpCost;
+    hasDoubleJump = true;
+}
+
+function buyOrSelectSkin(skin) {
+    if (ownedSkins.includes(skin.id)) {
+        selectedSkinId = skin.id;
         return;
     }
-    buyFireSword();
+    if (coinsBank < skin.price) return;
+    coinsBank -= skin.price;
+    ownedSkins.push(skin.id);
+    selectedSkinId = skin.id;
+    try {
+        localStorage.setItem(skinStorageKey, JSON.stringify(ownedSkins));
+    } catch {
+        // Keep the purchase for the current session if storage is unavailable.
+    }
 }
 
 function launchFireball() {
@@ -1003,15 +1053,17 @@ function drawKatana(x, y) {
 
 function drawPlayer(x, y) {
     const frameName = getNinjaFrame();
-    const skin = ninjaSkin[frameName];
+    const baseSkin = ninjaSkin[frameName];
+    const selectedSkin = skinCatalog.find((skin) => skin.id === selectedSkinId) || skinCatalog[0];
     const pixelSize = 3;
 
-    for (let row = 0; row < skin.length; row++) {
-        for (let col = 0; col < skin[row].length; col++) {
-            if (!skin[row][col]) {
+    for (let row = 0; row < baseSkin.length; row++) {
+        for (let col = 0; col < baseSkin[row].length; col++) {
+            const pixel = baseSkin[row][col];
+            if (!pixel) {
                 continue;
             }
-            ctx.fillStyle = skin[row][col];
+            ctx.fillStyle = pixel === "#00c853" ? selectedSkin.color : pixel === "#000" ? selectedSkin.accent : pixel;
             ctx.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
         }
     }
@@ -1061,27 +1113,132 @@ function drawMenu() {
 }
 
 function drawShop() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.74)";
-    ctx.fillRect(100, 80, 440, 190);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "16px monospace";
-    ctx.fillText("SHOP", 120, 112);
-    ctx.font = "12px monospace";
-    ctx.fillText(`Double jump: ${hasDoubleJump ? "UNLOCKED" : `${doubleJumpCost} coins`}`, 120, 148);
-    ctx.fillText(`Fire Sword: ${hasFireSword ? "UNLOCKED" : `${shopCost} coins`}`, 120, 168);
-    ctx.fillText(`Wallet: ${coinsBank}`, 120, 188);
-    if (!hasDoubleJump && coinsBank >= doubleJumpCost) {
-        ctx.fillText(touchMode ? "Tap BUY to unlock double jump." : "Press Enter to unlock double jump.", 120, 212);
-    } else if (!hasDoubleJump) {
-        ctx.fillText("Collect more coins for double jump.", 120, 212);
-    } else if (hasFireSword) {
-        ctx.fillText(touchMode ? "Purchased. Tap FIRE to launch fireballs." : "Purchased. Press F to launch fireballs.", 120, 212);
-    } else if (coinsBank >= shopCost) {
-        ctx.fillText(touchMode ? "Tap BUY to buy Fire Sword." : "Press Enter to buy Fire Sword.", 120, 212);
-    } else {
-        ctx.fillText("Collect more coins for Fire Sword.", 120, 212);
+    if (skinShopOpen) {
+        drawSkinShop();
+        return;
     }
-    ctx.fillText(touchMode ? "Tap SHOP to close the shop." : "Press S to close the shop.", 120, 240);
+    ctx.save();
+    ctx.fillStyle = "rgba(8, 15, 30, 0.96)";
+    ctx.fillRect(55, 42, 530, 276);
+    ctx.strokeStyle = "#8be9fd";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(55, 42, 530, 276);
+    ctx.fillStyle = "#ffffff";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "bold 20px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("UPGRADE SHOP", 320, 78);
+    ctx.textAlign = "right";
+    ctx.font = "bold 14px monospace";
+    ctx.fillStyle = "#ffe082";
+    ctx.fillText(`Coins: ${coinsBank}`, 558, 77);
+    ctx.textAlign = "left";
+
+    ctx.fillStyle = "#182337";
+    ctx.fillRect(78, 98, 300, 112);
+    ctx.fillRect(78, 220, 300, 66);
+    ctx.strokeStyle = "#53677f";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(78, 98, 300, 112);
+    ctx.strokeRect(78, 220, 300, 66);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 14px monospace";
+    ctx.fillText("DOUBLE JUMP", 96, 126);
+    ctx.font = "12px monospace";
+    ctx.fillText(hasDoubleJump ? "Unlocked" : `Unlock for ${doubleJumpCost} coins`, 96, 150);
+    ctx.fillText("Fire Sword", 96, 242);
+    ctx.fillText(hasFireSword ? "Unlocked" : `Unlock for ${shopCost} coins`, 96, 264);
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "11px monospace";
+    ctx.fillText(hasDoubleJump ? "Already unlocked" : "Buy with JUMP / key 1", 96, 185);
+    ctx.fillText(hasFireSword ? "Use FIRE / key F to shoot" : "Buy with SWORD / key 2", 96, 282);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(touchMode ? "Tap SHOP to close" : "Press S to close", 228, 306);
+    drawCanvasButton(hasDoubleJump ? "JUMP  OWNED" : "BUY JUMP", 410, 105, 145, 44, hasDoubleJump ? "#37665a" : "#315a8a");
+    drawCanvasButton(hasFireSword ? "SWORD OWNED" : "BUY SWORD", 410, 160, 145, 44, hasFireSword ? "#37665a" : "#8a5a18");
+    drawCanvasButton("SKINS  ›", 410, 230, 145, 44, "#6441a5");
+    ctx.restore();
+}
+
+const skinCardRects = skinCatalog.map((skin, index) => ({
+    x: 62 + index * 129,
+    y: 105,
+    w: 112,
+    h: 176
+}));
+
+function drawCanvasButton(label, x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x + w / 2, y + h / 2);
+}
+
+function drawSkinShop() {
+    ctx.fillStyle = "rgba(8, 15, 30, 0.94)";
+    ctx.fillRect(36, 36, 568, 288);
+    ctx.strokeStyle = "#8be9fd";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(36, 36, 568, 288);
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "bold 18px monospace";
+    ctx.fillText("NINJA SKIN SHOP", 58, 69);
+    ctx.fillStyle = "#382b12";
+    ctx.fillRect(382, 78, 204, 22);
+    ctx.strokeStyle = "#ffe082";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(382, 78, 204, 22);
+    ctx.font = "bold 12px monospace";
+    ctx.fillStyle = "#ffe082";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`Coins: ${coinsBank}`, 484, 89);
+
+    skinCatalog.forEach((skin, index) => {
+        const card = skinCardRects[index];
+        const owned = ownedSkins.includes(skin.id);
+        const selected = selectedSkinId === skin.id;
+        ctx.fillStyle = selected ? "#263c50" : "#182337";
+        ctx.fillRect(card.x, card.y, card.w, card.h);
+        ctx.strokeStyle = selected ? "#8be9fd" : "#64748b";
+        ctx.lineWidth = selected ? 3 : 1;
+        ctx.strokeRect(card.x, card.y, card.w, card.h);
+        ctx.fillStyle = "#101827";
+        ctx.fillRect(card.x + 10, card.y + 10, card.w - 20, 76);
+        // Großes Pixel-Ninja-Muster als Vorschau.
+        ctx.fillStyle = skin.accent;
+        ctx.fillRect(card.x + 39, card.y + 28, 34, 30);
+        ctx.fillStyle = skin.color;
+        ctx.fillRect(card.x + 44, card.y + 44, 24, 17);
+        ctx.fillRect(card.x + 47, card.y + 18, 18, 12);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(card.x + 50, card.y + 22, 4, 3);
+        ctx.fillRect(card.x + 59, card.y + 22, 4, 3);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 10px monospace";
+        ctx.fillText(skin.name, card.x + card.w / 2, card.y + 105);
+        const label = selected ? "EQUIPPED" : owned ? "SELECT" : `${skin.price} COINS`;
+        drawCanvasButton(label, card.x + 7, card.y + 124, card.w - 14, 30, selected ? "#167c5a" : owned ? "#315a8a" : "#8a5a18");
+    });
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#dbeafe";
+    ctx.font = "11px monospace";
+    ctx.fillText("Choose a look. Purchased skins stay unlocked.", canvas.width / 2, 304);
+    ctx.textAlign = "left";
+    drawCanvasButton("BACK", 514, 44, 72, 28, "#475569");
 }
 
 function drawHud() {
@@ -1460,11 +1617,22 @@ function handleAction(code) {
 
     if (code === "KeyS") {
         shopOpen = !shopOpen;
+        skinShopOpen = false;
         return;
     }
 
-    if (shopOpen && code === "Enter") {
-        buyShopUpgrade();
+    if (code === "KeyK" && shopOpen) {
+        skinShopOpen = !skinShopOpen;
+        return;
+    }
+
+    if (shopOpen && code === "Digit1") {
+        buyDoubleJump();
+        return;
+    }
+
+    if (shopOpen && code === "Digit2") {
+        buyFireSword();
         return;
     }
 
@@ -1548,6 +1716,30 @@ canvas.addEventListener("pointerup", (event) => {
     const x = (event.clientX - rect.left) * (canvas.width / rect.width);
     const y = (event.clientY - rect.top) * (canvas.height / rect.height);
     const b = pauseButtonRect;
+
+    if (gameState === "playing" && shopOpen) {
+        event.preventDefault();
+        if (skinShopOpen) {
+            if (x >= 510 && x <= 590 && y >= 40 && y <= 76) {
+                skinShopOpen = false;
+                return;
+            }
+            for (let i = 0; i < skinCardRects.length; i++) {
+                const card = skinCardRects[i];
+                if (x >= card.x + 7 && x <= card.x + card.w - 7 && y >= card.y + 124 && y <= card.y + 154) {
+                    buyOrSelectSkin(skinCatalog[i]);
+                    return;
+                }
+            }
+        } else if (x >= 410 && x <= 555 && y >= 105 && y <= 149) {
+            buyDoubleJump();
+        } else if (x >= 410 && x <= 555 && y >= 160 && y <= 204) {
+            buyFireSword();
+        } else if (x >= 410 && x <= 555 && y >= 230 && y <= 274) {
+            skinShopOpen = true;
+        }
+        return;
+    }
 
     if (gameState === "playing" && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
         event.preventDefault();
