@@ -414,6 +414,10 @@ let highScore = loadHighScore();
 let coinsBank = 0;
 let platforms = [];
 let coins = [];
+let randomEvents = [];
+let eventMessage = "";
+let eventMessageFrames = 0;
+let winterMode = false;
 let enemies = [];
 let fireBalls = [];
 let rockWall = [];
@@ -485,6 +489,10 @@ function resetRun() {
     ninjaFrameCounter = 0;
     platforms = [];
     coins = [];
+    randomEvents = [];
+    eventMessage = "";
+    eventMessageFrames = 0;
+    winterMode = false;
     enemies = [];
     fireBalls = [];
     rockWall = [];
@@ -578,6 +586,17 @@ function generateWorld() {
                 Math.random() < 0.5 ? -1 : 1,
                 { enemySize: { w: 16, h: 16 } }
             ));
+        }
+
+        // Seltene Fragezeichen erscheinen direkt auf einer Plattform.
+        if (Math.random() < 0.075) {
+            randomEvents.push({
+                x: platform.x + width / 2 - 9,
+                y: platform.y - 28,
+                w: 18,
+                h: 22,
+                platform
+            });
         }
 
         lastPlatformX += gap + width;
@@ -734,6 +753,59 @@ function updateCoins() {
     });
 }
 
+function triggerRandomEvent(index) {
+    const randomEvent = randomEvents[index];
+    if (!randomEvent) return;
+
+    const outcomes = [
+        () => {
+            const reward = 5 + Math.floor(Math.random() * 11);
+            coinsBank += reward;
+            return `Glueck! +${reward} Münzen`;
+        },
+        () => {
+            const reward = 20 + Math.floor(Math.random() * 31);
+            score += reward;
+            updateHighScore();
+            return `Bonus! +${reward} Punkte`;
+        },
+        () => {
+            const defeated = enemies.length;
+            enemies = [];
+            return defeated ? `Jungle-Power! ${defeated} Gegner besiegt` : "Jungle-Power! Freie Bahn";
+        }
+    ];
+
+    if (!hasDoubleJump) {
+        outcomes.push(() => {
+            hasDoubleJump = true;
+            return "Ninja-Kraft! Doppelsprung freigeschaltet";
+        });
+    }
+    outcomes.push(() => {
+        winterMode = true;
+        return "Winterzauber! Die Landschaft ist jetzt verschneit";
+    });
+    outcomes.push(() => {
+        const eventPlatform = randomEvent.platform;
+        if (!eventPlatform || !platforms.includes(eventPlatform)) return "Die Plattform ist schon verschwunden!";
+        platforms = platforms.filter((platform) => platform !== eventPlatform);
+        return "Achtung! Die Plattform verschwindet";
+    });
+
+    eventMessage = outcomes[Math.floor(Math.random() * outcomes.length)]();
+    eventMessageFrames = 100;
+    randomEvents.splice(index, 1);
+}
+
+function updateRandomEvents() {
+    for (let i = randomEvents.length - 1; i >= 0; i--) {
+        if (rectsOverlap(player, randomEvents[i])) {
+            triggerRandomEvent(i);
+        }
+    }
+}
+
 function updateEnemies() {
     const katanaHitbox = attacking ? getKatanaHitbox() : null;
 
@@ -789,6 +861,32 @@ function drawEnemy(x, y) {
     x = 0;
     y = 0;
 
+    if (winterMode) {
+        // Rentier mit Geweih, heller Schnauze und roter Nase.
+        ctx.fillStyle = "#76502f";
+        ctx.fillRect(x + 1, y + 4, 8, 4);
+        ctx.fillRect(x + 2, y + 2, 6, 5);
+        ctx.fillStyle = "#9b6b3d";
+        ctx.fillRect(x + 3, y + 3, 4, 3);
+        ctx.fillStyle = "#f4dfbd";
+        ctx.fillRect(x + 5, y + 5, 4, 3);
+        ctx.fillStyle = "#fff4df";
+        ctx.fillRect(x + 7, y + 5, 2, 2);
+        ctx.fillStyle = "#d92738";
+        ctx.fillRect(x + 9, y + 6, 2, 2);
+        ctx.fillStyle = "#231a14";
+        ctx.fillRect(x + 6, y + 4, 1, 1);
+        ctx.fillStyle = "#5a3925";
+        ctx.fillRect(x + 2, y + 1, 1, 3);
+        ctx.fillRect(x + 1, y, 3, 1);
+        ctx.fillRect(x + 3, y + 1, 2, 1);
+        ctx.fillRect(x + 7, y + 1, 1, 3);
+        ctx.fillRect(x + 7, y, 3, 1);
+        ctx.fillRect(x + 6, y + 1, 2, 1);
+        ctx.restore();
+        return;
+    }
+
     // Kleine Stacheln und Schatten
     ctx.fillStyle = "#202033";
     ctx.fillRect(x + 1, y + 2, 2, 2);
@@ -828,6 +926,40 @@ function drawEnemy(x, y) {
     ctx.fillStyle = "#171523";
     ctx.fillRect(x + 4, y + 7, 2, 1);
     ctx.restore();
+}
+
+function drawRandomEvents() {
+    for (const randomEvent of randomEvents) {
+        const x = Math.round(randomEvent.x - cameraX);
+        const y = Math.round(randomEvent.y);
+        ctx.save();
+        ctx.fillStyle = "#ffd54a";
+        ctx.strokeStyle = "#3b2600";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(x, y, randomEvent.w, randomEvent.h, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#3b2600";
+        ctx.font = "bold 17px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("?", x + randomEvent.w / 2, y + randomEvent.h / 2 + 1);
+        ctx.restore();
+    }
+    if (eventMessageFrames > 0) {
+        ctx.save();
+        ctx.fillStyle = "rgba(13, 27, 42, 0.88)";
+        ctx.fillRect(150, 44, 340, 30);
+        ctx.strokeStyle = "#ffd54a";
+        ctx.strokeRect(150, 44, 340, 30);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(eventMessage, canvas.width / 2, 59);
+        ctx.restore();
+    }
 }
 
 function drawKatana(x, y) {
@@ -882,6 +1014,17 @@ function drawPlayer(x, y) {
             ctx.fillStyle = skin[row][col];
             ctx.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
         }
+    }
+
+    if (winterMode) {
+        // Rote Zipfelmütze mit weißem Rand und Bommel.
+        ctx.fillStyle = "#d71935";
+        ctx.fillRect(x + 3, y - 2, 8, 3);
+        ctx.fillRect(x + 7, y - 4, 5, 3);
+        ctx.fillRect(x + 10, y - 6, 3, 3);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(x + 3, y, 9, 2);
+        ctx.fillRect(x + 11, y - 7, 3, 3);
     }
 
     drawKatana(x, y);
@@ -989,6 +1132,36 @@ function drawPauseButton() {
 }
 
 function drawJungleBackground() {
+    if (winterMode) {
+        const winterSky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        winterSky.addColorStop(0, "#8ec9e8");
+        winterSky.addColorStop(0.62, "#d9f2ff");
+        winterSky.addColorStop(1, "#a8d5e8");
+        ctx.fillStyle = winterSky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#f7fdff";
+        ctx.beginPath();
+        ctx.moveTo(0, 190);
+        ctx.lineTo(110, 82);
+        ctx.lineTo(220, 190);
+        ctx.lineTo(330, 65);
+        ctx.lineTo(490, 190);
+        ctx.lineTo(580, 100);
+        ctx.lineTo(640, 165);
+        ctx.lineTo(640, 360);
+        ctx.lineTo(0, 360);
+        ctx.fill();
+        ctx.fillStyle = "#e8f8ff";
+        ctx.fillRect(0, canvas.height - 44, canvas.width, 44);
+        for (let i = 0; i < 36; i++) {
+            const x = (i * 97 + Math.sin(Date.now() / 700 + i) * 12) % canvas.width;
+            const y = (i * 53 + Date.now() / 35) % canvas.height;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.fillRect(x, y, 3, 3);
+        }
+        return;
+    }
+
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, "#183f32");
     gradient.addColorStop(0.58, "#286347");
@@ -1126,7 +1299,14 @@ function draw() {
     for (const platform of platforms) {
         const screenX = Math.round(platform.x - cameraX);
         const topY = Math.round(platform.y);
-        if (platformTexture.complete && platformTexture.naturalWidth > 0) {
+        if (winterMode) {
+            ctx.fillStyle = "#8bb9c9";
+            ctx.fillRect(screenX, topY, platform.w, platform.h);
+            ctx.fillStyle = "#f7fdff";
+            ctx.fillRect(screenX, topY - 3, platform.w, 5);
+            ctx.fillStyle = "#d9f2ff";
+            ctx.fillRect(screenX + 4, topY - 5, Math.max(0, platform.w - 8), 2);
+        } else if (platformTexture.complete && platformTexture.naturalWidth > 0) {
             // Tile the crisp pixel-art grass-and-stone texture without smoothing.
             ctx.imageSmoothingEnabled = false;
             for (let i = 0; i < platform.w; i += platformTexture.naturalWidth) {
@@ -1152,6 +1332,8 @@ function draw() {
             ctx.fillRect(coin.x - cameraX + 1, coin.y + 1, 2, 2);
         }
     }
+
+    drawRandomEvents();
 
     for (const enemy of enemies) {
         drawEnemy(enemy.x - cameraX, enemy.y);
@@ -1205,6 +1387,7 @@ function tick() {
         updateAttackState();
         updatePlayer();
         updateCoins();
+        updateRandomEvents();
         updateEnemies();
         if (gameState === "playing") {
             updateFireballs();
@@ -1219,6 +1402,7 @@ function tick() {
         cameraX = Math.max(0, player.x - 150);
         platforms = platforms.filter((platform) => platform.x + platform.w > cameraX - 50);
         coins = coins.filter((coin) => coin.x + coin.w > cameraX - 50);
+        randomEvents = randomEvents.filter((randomEvent) => randomEvent.x + randomEvent.w > cameraX - 50);
         enemies = enemies.filter((enemy) => enemy.x + enemy.w > cameraX - 50);
         generateWorld();
         updateRockWall();
@@ -1227,6 +1411,7 @@ function tick() {
     if (fireballCooldown > 0) {
         fireballCooldown--;
     }
+    if (eventMessageFrames > 0) eventMessageFrames--;
 }
 
 // Run the game logic at a fixed 30 ticks per second, independent of the
