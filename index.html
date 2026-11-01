@@ -423,8 +423,50 @@ const ninjaSkin = {
 const playerCollisionMasks = Object.fromEntries(
     Object.entries(ninjaSkin).map(([frameName, skin]) => [frameName, createSpriteMask(skin, 3)])
 );
+const winterHatLayers = [
+    { color: "#d71935", rects: [[3, -2, 8, 3], [7, -4, 5, 3], [10, -6, 3, 3]] },
+    { color: "#ffffff", rects: [[3, 0, 9, 2], [11, -7, 3, 3]] }
+];
+const winterHatMask = winterHatLayers.flatMap((layer) => layer.rects.map(([x, y, w, h]) => ({ x, y, w, h })));
+const winterPlayerCollisionMasks = Object.fromEntries(
+    Object.entries(playerCollisionMasks).map(([frameName, mask]) => [frameName, mask.concat(winterHatMask)])
+);
 const coinCollisionMask = createSolidMask(6, 6);
-const enemyCollisionMask = createSolidMask(16, 16);
+const enemySpriteScale = 1.6;
+const enemySpriteLayers = [
+    { color: "#202033", rects: [[1, 2, 2, 2], [7, 1, 2, 3], [2, 0, 2, 2], [6, 7, 3, 2]] },
+    { color: "#302b46", rects: [[1, 3, 8, 5]] },
+    { color: "#51445f", rects: [[2, 2, 6, 5], [2, 8, 5, 1]] },
+    { color: "#756078", rects: [[3, 3, 2, 2]] },
+    { color: "#3c354f", rects: [[1, 6, 7, 2]] },
+    { color: "#202033", rects: [[1, 8, 7, 1]] },
+    { color: "#8d6c78", rects: [[6, 5, 2, 1]] },
+    { color: "#70df43", rects: [[2, 2, 2, 1], [7, 4, 1, 1]] },
+    { color: "#ffefb0", rects: [[2, 4, 2, 2], [6, 4, 2, 2]] },
+    { color: "#f04445", rects: [[3, 4, 1, 2], [6, 4, 1, 2]] },
+    { color: "#171523", rects: [[4, 7, 2, 1]] }
+];
+const winterEnemySpriteLayers = [
+    { color: "#76502f", rects: [[1, 4, 8, 4], [2, 2, 6, 5]] },
+    { color: "#9b6b3d", rects: [[3, 3, 4, 3]] },
+    { color: "#f4dfbd", rects: [[5, 5, 4, 3]] },
+    { color: "#fff4df", rects: [[7, 5, 2, 2]] },
+    { color: "#d92738", rects: [[9, 6, 2, 2]] },
+    { color: "#231a14", rects: [[6, 4, 1, 1]] },
+    { color: "#5a3925", rects: [[2, 1, 1, 3], [1, 0, 3, 1], [3, 1, 2, 1], [7, 1, 1, 3], [7, 0, 3, 1], [6, 1, 2, 1]] }
+];
+
+function createEnemyCollisionMask(layers) {
+    return layers.flatMap((layer) => layer.rects.map(([x, y, w, h]) => ({
+        x: x * enemySpriteScale,
+        y: y * enemySpriteScale,
+        w: w * enemySpriteScale,
+        h: h * enemySpriteScale
+    })));
+}
+
+const enemyCollisionMask = createEnemyCollisionMask(enemySpriteLayers);
+const winterEnemyCollisionMask = createEnemyCollisionMask(winterEnemySpriteLayers);
 
 const keys = {};
 const clouds = [
@@ -665,8 +707,9 @@ function getKatanaHitbox() {
     };
 }
 
-function playerOverlapsEntity(entity, entityMask) {
-    return masksOverlap(player, playerCollisionMasks[getNinjaFrame()], entity, entityMask);
+function playerOverlapsEntity(entity, entityMask, includeWinterHat = false) {
+    const masks = winterMode && includeWinterHat ? winterPlayerCollisionMasks : playerCollisionMasks;
+    return masksOverlap(player, masks[getNinjaFrame()], entity, entityMask);
 }
 
 function buyFireSword() {
@@ -870,7 +913,7 @@ function updateEnemies() {
             continue;
         }
 
-        if (playerOverlapsEntity(enemy, enemyCollisionMask)) {
+        if (playerOverlapsEntity(enemy, winterMode ? winterEnemyCollisionMask : enemyCollisionMask, true)) {
             endRun();
             return;
         }
@@ -903,78 +946,17 @@ function updateFireballs() {
 }
 
 function drawEnemy(x, y) {
-    // Größeres Fels-Schleim-Monster; die Pixelgrafik wird gleichmäßig skaliert.
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(1.6, 1.6);
+    ctx.scale(enemySpriteScale, enemySpriteScale);
     ctx.imageSmoothingEnabled = false;
-    x = 0;
-    y = 0;
-
-    if (winterMode) {
-        // Rentier mit Geweih, heller Schnauze und roter Nase.
-        ctx.fillStyle = "#76502f";
-        ctx.fillRect(x + 1, y + 4, 8, 4);
-        ctx.fillRect(x + 2, y + 2, 6, 5);
-        ctx.fillStyle = "#9b6b3d";
-        ctx.fillRect(x + 3, y + 3, 4, 3);
-        ctx.fillStyle = "#f4dfbd";
-        ctx.fillRect(x + 5, y + 5, 4, 3);
-        ctx.fillStyle = "#fff4df";
-        ctx.fillRect(x + 7, y + 5, 2, 2);
-        ctx.fillStyle = "#d92738";
-        ctx.fillRect(x + 9, y + 6, 2, 2);
-        ctx.fillStyle = "#231a14";
-        ctx.fillRect(x + 6, y + 4, 1, 1);
-        ctx.fillStyle = "#5a3925";
-        ctx.fillRect(x + 2, y + 1, 1, 3);
-        ctx.fillRect(x + 1, y, 3, 1);
-        ctx.fillRect(x + 3, y + 1, 2, 1);
-        ctx.fillRect(x + 7, y + 1, 1, 3);
-        ctx.fillRect(x + 7, y, 3, 1);
-        ctx.fillRect(x + 6, y + 1, 2, 1);
-        ctx.restore();
-        return;
+    const layers = winterMode ? winterEnemySpriteLayers : enemySpriteLayers;
+    for (const layer of layers) {
+        ctx.fillStyle = layer.color;
+        for (const [rectX, rectY, width, height] of layer.rects) {
+            ctx.fillRect(rectX, rectY, width, height);
+        }
     }
-
-    // Kleine Stacheln und Schatten
-    ctx.fillStyle = "#202033";
-    ctx.fillRect(x + 1, y + 2, 2, 2);
-    ctx.fillRect(x + 7, y + 1, 2, 3);
-    ctx.fillRect(x + 2, y, 2, 2);
-    ctx.fillRect(x + 6, y + 7, 3, 2);
-
-    // Körper mit steinigen violett-braunen Pixeln
-    ctx.fillStyle = "#302b46";
-    ctx.fillRect(x + 1, y + 3, 8, 5);
-    ctx.fillStyle = "#51445f";
-    ctx.fillRect(x + 2, y + 2, 6, 5);
-    ctx.fillStyle = "#756078";
-    ctx.fillRect(x + 3, y + 3, 2, 2);
-    ctx.fillStyle = "#3c354f";
-    ctx.fillRect(x + 1, y + 6, 7, 2);
-    // Unterkante schließen, damit die Gegner-Textur bis ganz nach unten reicht.
-    ctx.fillStyle = "#202033";
-    ctx.fillRect(x + 1, y + 8, 7, 1);
-    ctx.fillStyle = "#51445f";
-    ctx.fillRect(x + 2, y + 8, 5, 1);
-    ctx.fillStyle = "#8d6c78";
-    ctx.fillRect(x + 6, y + 5, 2, 1);
-
-    // Leuchtende moosgrüne Details, damit es zur Plattform passt
-    ctx.fillStyle = "#70df43";
-    ctx.fillRect(x + 2, y + 2, 2, 1);
-    ctx.fillRect(x + 7, y + 4, 1, 1);
-
-    // Augen und kleiner Mund
-    ctx.fillStyle = "#ffefb0";
-    ctx.fillRect(x + 2, y + 4, 2, 2);
-    ctx.fillRect(x + 6, y + 4, 2, 2);
-    ctx.fillStyle = "#f04445";
-    ctx.fillRect(x + 3, y + 4, 1, 2);
-    ctx.fillRect(x + 6, y + 4, 1, 2);
-    ctx.fillStyle = "#171523";
-    ctx.fillRect(x + 4, y + 7, 2, 1);
     ctx.restore();
 }
 
@@ -1069,14 +1051,12 @@ function drawPlayer(x, y) {
     }
 
     if (winterMode) {
-        // Rote Zipfelmütze mit weißem Rand und Bommel.
-        ctx.fillStyle = "#d71935";
-        ctx.fillRect(x + 3, y - 2, 8, 3);
-        ctx.fillRect(x + 7, y - 4, 5, 3);
-        ctx.fillRect(x + 10, y - 6, 3, 3);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(x + 3, y, 9, 2);
-        ctx.fillRect(x + 11, y - 7, 3, 3);
+        for (const layer of winterHatLayers) {
+            ctx.fillStyle = layer.color;
+            for (const [rectX, rectY, width, height] of layer.rects) {
+                ctx.fillRect(x + rectX, y + rectY, width, height);
+            }
+        }
     }
 
     drawKatana(x, y);
