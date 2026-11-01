@@ -566,7 +566,7 @@ function startGame() {
 
 function endRun() {
     updateHighScore();
-    gameState = "menu";
+    gameState = "gameover";
     isPaused = false;
     pauseAllAudio();
     shopOpen = false;
@@ -1510,6 +1510,23 @@ function draw() {
         drawShop();
     }
 
+    if (gameState === "gameover") {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 36px monospace";
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#111827";
+        ctx.fillStyle = "#ff5b5b";
+        ctx.strokeText("GAME OVER", canvas.width / 2, canvas.height / 2 - 32);
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 32);
+        ctx.font = "16px monospace";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText("Tippen oder Taste drücken zum Neustart", canvas.width / 2, canvas.height / 2 + 18);
+        ctx.fillText(`Punkte: ${score}`, canvas.width / 2, canvas.height / 2 + 48);
+    }
+
     ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
     for (let i = 0; i < canvas.height; i += 2) {
         ctx.fillRect(0, i, canvas.width, 1);
@@ -1611,6 +1628,11 @@ function handleAction(code) {
     if (isPaused) return;
 
     if (gameState === "menu") {
+        startGame();
+        return;
+    }
+
+    if (gameState === "gameover") {
         startGame();
         return;
     }
@@ -1748,6 +1770,12 @@ canvas.addEventListener("pointerup", (event) => {
     }
 
     if (gameState === "menu") {
+        event.preventDefault();
+        startGame();
+        return;
+    }
+
+    if (gameState === "gameover") {
         event.preventDefault();
         startGame();
     }
