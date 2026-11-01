@@ -20,7 +20,7 @@ Ein Austausch der PNG-Dateien unter denselben URLs aktualisiert das Desktop-Icon
 
 ```json
 {
-  "src": "icons/icon-192.png?v=2",
+  "src": "icons/icon-192.png?v=3",
   "sizes": "192x192",
   "type": "image/png",
   "purpose": "any"

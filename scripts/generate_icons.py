@@ -19,7 +19,6 @@ SKY_TOP = (0x87, 0xCE, 0xEB)
 SKY_BOTTOM = (0xC0, 0xE0, 0xFF)
 NINJA = (0x00, 0x00, 0x00)
 BAND = (0x00, 0xC8, 0x53)
-KATANA = (0xCC, 0xCC, 0xCC)
 
 # Same shape and colors as ninjaSkin.idle in index.html: K = body, G = green band.
 NINJA_SPRITE = [
@@ -71,10 +70,6 @@ def draw_grid():
                 for dx in range(8):
                     grid.putpixel((left + col * 8 + dx, top + row * 8 + dy), color)
 
-    # Katana held up from the right hand.
-    for y in range(12, 32):
-        for dx in range(2):
-            grid.putpixel((44 + dx, y), KATANA)
     return grid
 
 

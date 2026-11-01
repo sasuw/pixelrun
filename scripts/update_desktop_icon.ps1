@@ -38,7 +38,7 @@ if ($shortcut.Arguments -notmatch '--app-id=') {
 }
 
 $iconHash = (Get-FileHash -LiteralPath $sourceIcon -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
-$destinationIcon = Join-Path $iconDirectory "Pixel Run-$iconHash.ico"
+$destinationIcon = Join-Path $iconDirectory "Pixel Run-pixel-$iconHash.ico"
 $iconLocation = "$destinationIcon,0"
 
 Write-Output "Shortcut: $shortcutPath"

@@ -1,17 +1,17 @@
 // Service worker for the installed app: serves the game files from the
 // cache when offline. Network first, so a new deploy shows up on the next
 // start without changing this file. Bump cacheName only when appFiles changes.
-const cacheName = "pixelrun-v1";
+const cacheName = "pixelrun-v2";
 const appFiles = [
     "./",
     "./index.html",
     "./game-logic.js",
     "./manifest.webmanifest",
-    "./icons/icon-32.png",
-    "./icons/apple-touch-icon.png",
-    "./icons/icon-192.png",
-    "./icons/icon-512.png",
-    "./icons/icon-maskable-512.png"
+    "./icons/icon-32.png?v=2",
+    "./icons/apple-touch-icon.png?v=2",
+    "./icons/icon-192.png?v=2",
+    "./icons/icon-512.png?v=2",
+    "./icons/icon-maskable-512.png?v=2"
 ];
 
 self.addEventListener("install", (event) => {
