@@ -33,4 +33,13 @@ Die versionierten Icon-URLs auch in `appFiles` in `sw.js` eintragen und `cacheNa
 
 Zum Prüfen die installierte App mit Internetverbindung öffnen. Wenn Chrome ein Icon-Update erkennt, im Drei-Punkte-Menü **„Review app update“** (sinngemäß „App-Update überprüfen“) auswählen und das neue Icon bestätigen. Ein gewöhnliches Neuladen der Seite ersetzt das Desktop-Icon nicht zwingend. Das Verhalten anderer Browser, insbesondere Edge, kann abweichen.
 
+Für eine lokale Windows-Desktop-Verknüpfung kann das aktuelle Projekt-Icon auch direkt gesetzt werden:
+
+```powershell
+powershell -File scripts\update_desktop_icon.ps1 --dry-run
+powershell -File scripts\update_desktop_icon.ps1
+```
+
+Das Skript ermittelt den Desktop und den App-Datenordner des jeweils angemeldeten Benutzers; es enthält keinen festen Home-Pfad. Es aktualisiert nur dessen `Pixel Run.lnk`, sofern die Verknüpfung vorhanden ist. Andere Benutzer führen den Befehl in ihrem eigenen Windows-Profil aus. Das Skript benötigt Python 3 und Pillow wie oben beschrieben. Die Änderung betrifft die Desktop-Verknüpfung, nicht automatisch angeheftete Symbole in Startmenü oder Taskleiste.
+
 Hintergrund: [Chrome: A better way to update your web apps](https://developer.chrome.com/blog/improvements-to-web-app-updates) und [Microsoft Edge: Define icons and a theme color](https://learn.microsoft.com/en-us/microsoft-edge/progressive-web-apps/how-to/icon-theme-color).
