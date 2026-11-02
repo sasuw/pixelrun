@@ -243,6 +243,17 @@ function createFallbackGameLogic() {
         return false;
     }
 
+    // True when a painted pixel of the mask's lowest row is above the platform.
+    function maskFeetOverPlatform(x, mask, platform) {
+        const bottom = Math.max(...mask.map((segment) => segment.y + segment.h));
+
+        return mask.some((segment) =>
+            segment.y + segment.h === bottom &&
+            x + segment.x < platform.x + platform.w &&
+            x + segment.x + segment.w > platform.x
+        );
+    }
+
     function getEnemyPatrolBounds(platform, enemyWidth) {
         const minX = platform.x;
         const maxX = Math.max(platform.x, platform.x + platform.w - enemyWidth);
@@ -293,6 +304,7 @@ function createFallbackGameLogic() {
         createEnemyForPlatform,
         createSolidMask,
         createSpriteMask,
+        maskFeetOverPlatform,
         masksOverlap,
         rectsOverlap,
         updateEnemyPatrol
@@ -307,6 +319,7 @@ const {
     createSolidMask,
     createSpriteMask,
     createStarterPlatform,
+    maskFeetOverPlatform,
     masksOverlap,
     rectsOverlap,
     updateEnemyPatrol
@@ -319,7 +332,7 @@ const swordDrawSpeed = 0.18;
 const attackDurationFrames = 8;
 const fireballCooldownFrames = 18;
 const platformLeadDistance = 900;
-const playerSpawn = { x: 50, y: 50, w: 10, h: 10 };
+const playerSpawn = { x: 50, y: 50, w: 12, h: 12 };
 const shopCost = 20;
 const doubleJumpCost = 10;
 const highScoreStorageKey = "pixelrun.highScore";
@@ -447,13 +460,13 @@ const enemySpriteLayers = [
     { color: "#171523", rects: [[4, 7, 2, 1]] }
 ];
 const winterEnemySpriteLayers = [
-    { color: "#76502f", rects: [[1, 4, 8, 4], [2, 2, 6, 5]] },
-    { color: "#9b6b3d", rects: [[3, 3, 4, 3]] },
-    { color: "#f4dfbd", rects: [[5, 5, 4, 3]] },
-    { color: "#fff4df", rects: [[7, 5, 2, 2]] },
-    { color: "#d92738", rects: [[9, 6, 2, 2]] },
-    { color: "#231a14", rects: [[6, 4, 1, 1]] },
-    { color: "#5a3925", rects: [[2, 1, 1, 3], [1, 0, 3, 1], [3, 1, 2, 1], [7, 1, 1, 3], [7, 0, 3, 1], [6, 1, 2, 1]] }
+    { color: "#76502f", rects: [[1, 5, 8, 4], [2, 3, 6, 5]] },
+    { color: "#9b6b3d", rects: [[3, 4, 4, 3]] },
+    { color: "#f4dfbd", rects: [[5, 6, 4, 3]] },
+    { color: "#fff4df", rects: [[7, 6, 2, 2]] },
+    { color: "#d92738", rects: [[9, 7, 2, 2]] },
+    { color: "#231a14", rects: [[6, 5, 1, 1]] },
+    { color: "#5a3925", rects: [[2, 2, 1, 3], [1, 1, 3, 1], [3, 2, 2, 1], [7, 2, 1, 3], [7, 1, 3, 1], [6, 2, 2, 1]] }
 ];
 
 function createEnemyCollisionMask(layers) {
@@ -467,6 +480,8 @@ function createEnemyCollisionMask(layers) {
 
 const enemyCollisionMask = createEnemyCollisionMask(enemySpriteLayers);
 const winterEnemyCollisionMask = createEnemyCollisionMask(winterEnemySpriteLayers);
+// Both appearances end on the same row, so enemies stand on the platform surface.
+const enemySpriteHeight = Math.max(...enemyCollisionMask.map((segment) => segment.y + segment.h));
 
 const keys = {};
 const clouds = [
@@ -648,9 +663,9 @@ function generateWorld() {
     while (lastPlatformX < cameraX + platformLeadDistance) {
         // Der Schwierigkeitsgrad steigt mit der zurückgelegten Strecke und bleibt begrenzt.
         const difficulty = Math.min(cameraX / 12000, 1);
-        const width = (48 - difficulty * 18) + Math.random() * 48;
-        const gap = 28 + Math.random() * (44 + difficulty * 38);
-        const height = 140 + Math.random() * (110 + difficulty * 25);
+        const width = Math.round((48 - difficulty * 18) + Math.random() * 48);
+        const gap = Math.round(28 + Math.random() * (44 + difficulty * 38));
+        const height = Math.round(140 + Math.random() * (110 + difficulty * 25));
         const platform = { x: lastPlatformX + gap, y: height, w: width, h: 10 };
 
         platforms.push(platform);
@@ -663,7 +678,7 @@ function generateWorld() {
             enemies.push(createEnemyForPlatform(
                 platform,
                 Math.random() < 0.5 ? -1 : 1,
-                { enemySize: { w: 16, h: 16 } }
+                { enemySize: { w: 16, h: enemySpriteHeight } }
             ));
         }
 
@@ -707,9 +722,13 @@ function getKatanaHitbox() {
     };
 }
 
+function getPlayerPixelPosition() {
+    return { x: Math.round(player.x), y: Math.round(player.y) };
+}
+
 function playerOverlapsEntity(entity, entityMask, includeWinterHat = false) {
     const masks = winterMode && includeWinterHat ? winterPlayerCollisionMasks : playerCollisionMasks;
-    return masksOverlap(player, masks[getNinjaFrame()], entity, entityMask);
+    return masksOverlap(getPlayerPixelPosition(), masks[getNinjaFrame()], entity, entityMask);
 }
 
 function buyFireSword() {
@@ -818,10 +837,12 @@ function updatePlayer() {
         player.dx = 0;
     }
 
+    const playerMask = playerCollisionMasks[getNinjaFrame()];
+    const playerPixelX = getPlayerPixelPosition().x;
+
     for (const platform of platforms) {
         const fallingOntoPlatform =
-            player.x < platform.x + platform.w &&
-            player.x + player.w > platform.x &&
+            maskFeetOverPlatform(playerPixelX, playerMask, platform) &&
             previousBottom <= platform.y &&
             player.y + player.h >= platform.y;
 
@@ -1438,24 +1459,26 @@ function draw() {
         const topY = Math.round(platform.y);
         if (winterMode) {
             ctx.fillStyle = "#8bb9c9";
-            ctx.fillRect(screenX, topY, platform.w, platform.h);
+            ctx.fillRect(screenX, topY + 5, platform.w, platform.h);
             ctx.fillStyle = "#f7fdff";
-            ctx.fillRect(screenX, topY - 3, platform.w, 5);
+            ctx.fillRect(screenX, topY, platform.w, 5);
             ctx.fillStyle = "#d9f2ff";
-            ctx.fillRect(screenX + 4, topY - 5, Math.max(0, platform.w - 8), 2);
+            ctx.fillRect(screenX + 4, topY, Math.max(0, platform.w - 8), 2);
         } else if (platformTexture.complete && platformTexture.naturalWidth > 0) {
             // Tile the crisp pixel-art grass-and-stone texture without smoothing.
+            // The texture starts with a transparent row, so the offset puts its
+            // first painted row exactly on the collision surface.
             ctx.imageSmoothingEnabled = false;
             for (let i = 0; i < platform.w; i += platformTexture.naturalWidth) {
                 const drawW = Math.min(platformTexture.naturalWidth, platform.w - i);
                 ctx.drawImage(platformTexture, 0, 0, drawW, platformTexture.naturalHeight,
-                    screenX + i, topY - 2, drawW, 16);
+                    screenX + i, topY - 1, drawW, 16);
             }
         } else {
             ctx.fillStyle = "#62c72d";
-            ctx.fillRect(screenX, topY - 2, platform.w, 4);
+            ctx.fillRect(screenX, topY, platform.w, 4);
             ctx.fillStyle = "#59415a";
-            ctx.fillRect(screenX, topY + 2, platform.w, 10);
+            ctx.fillRect(screenX, topY + 4, platform.w, 10);
         }
     }
 
@@ -1483,7 +1506,8 @@ function draw() {
         ctx.fillRect(fireball.x - cameraX + 1, fireball.y + 1, 2, 2);
     }
 
-    drawPlayer(player.x - cameraX, player.y);
+    const playerPixel = getPlayerPixelPosition();
+    drawPlayer(playerPixel.x - cameraX, playerPixel.y);
     drawHud();
 
     if (shopOpen) {
@@ -1553,7 +1577,7 @@ function tick() {
     }
 
     if (gameState === "playing") {
-        cameraX = Math.max(0, player.x - 150);
+        cameraX = Math.max(0, getPlayerPixelPosition().x - 150);
         platforms = platforms.filter((platform) => platform.x + platform.w > cameraX - 50);
         coins = coins.filter((coin) => coin.x + coin.w > cameraX - 50);
         randomEvents = randomEvents.filter((randomEvent) => randomEvent.x + randomEvent.w > cameraX - 50);

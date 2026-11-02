@@ -93,6 +93,17 @@
         return false;
     }
 
+    // True when a painted pixel of the mask's lowest row is above the platform.
+    function maskFeetOverPlatform(x, mask, platform) {
+        const bottom = Math.max(...mask.map((segment) => segment.y + segment.h));
+
+        return mask.some((segment) =>
+            segment.y + segment.h === bottom &&
+            x + segment.x < platform.x + platform.w &&
+            x + segment.x + segment.w > platform.x
+        );
+    }
+
     function getEnemyPatrolBounds(platform, enemyWidth) {
         const minX = platform.x;
         const maxX = Math.max(platform.x, platform.x + platform.w - enemyWidth);
@@ -144,6 +155,7 @@
         getEnemyPatrolBounds,
         createSolidMask,
         createSpriteMask,
+        maskFeetOverPlatform,
         masksOverlap,
         rectsOverlap,
         updateEnemyPatrol

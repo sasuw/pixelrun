@@ -20,9 +20,23 @@ test("enemy collision follows painted pixels in both appearances", () => {
     assert.equal(touches(0, 0, enemyCollisionMask), false);
     assert.equal(touches(4, 0, enemyCollisionMask), true);
     assert.equal(touches(5, 15, enemyCollisionMask), false);
-    assert.equal(touches(2, 0, winterEnemyCollisionMask), true);
+    assert.equal(touches(2, 2, winterEnemyCollisionMask), true);
+    assert.equal(touches(2, 0, winterEnemyCollisionMask), false);
     assert.equal(touches(0, 0, winterEnemyCollisionMask), false);
-    assert.equal(touches(17, 10, winterEnemyCollisionMask), true);
+    assert.equal(touches(17, 12, winterEnemyCollisionMask), true);
+});
+
+test("both enemy appearances end on the same row", () => {
+    const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+    const start = html.indexOf("const enemySpriteScale =");
+    const end = html.indexOf("const keys =", start);
+    const { enemyCollisionMask, winterEnemyCollisionMask, enemySpriteHeight } = vm.runInNewContext(
+        `${html.slice(start, end)}; ({ enemyCollisionMask, winterEnemyCollisionMask, enemySpriteHeight })`
+    );
+    const bottom = (mask) => Math.max(...mask.map((segment) => segment.y + segment.h));
+
+    assert.equal(bottom(enemyCollisionMask), enemySpriteHeight);
+    assert.equal(bottom(winterEnemyCollisionMask), enemySpriteHeight);
 });
 
 test("winter collision includes the ninja's visible hat pixels", () => {

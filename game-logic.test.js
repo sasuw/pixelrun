@@ -7,6 +7,7 @@ const {
     createSolidMask,
     createSpriteMask,
     getEnemyPatrolBounds,
+    maskFeetOverPlatform,
     masksOverlap,
     rectsOverlap,
     updateEnemyPatrol
@@ -140,4 +141,25 @@ test("sprite-mask collision matches visible ninja pixels more closely than the o
 
     assert.equal(rectsOverlap(player, enemy), false);
     assert.equal(masksOverlap(player, playerMask, enemy, enemyMask), true);
+});
+
+test("maskFeetOverPlatform counts only painted pixels of the lowest row", () => {
+    const mask = createSpriteMask(ninjaJumpSprite, 3);
+    const platform = { x: 100, y: 50, w: 50, h: 10 };
+
+    // Lowest row: columns 0 and 1 (x 0 to 5) and column 3 (x 9 to 11).
+    assert.equal(maskFeetOverPlatform(89, mask, platform), true, "one pixel of the right foot");
+    assert.equal(maskFeetOverPlatform(88, mask, platform), false, "right foot just beside the edge");
+    assert.equal(maskFeetOverPlatform(149, mask, platform), true, "one pixel of the left foot");
+    assert.equal(maskFeetOverPlatform(150, mask, platform), false, "left foot just beside the edge");
+
+    // A platform only under the unpainted gap at x 6 to 8 carries nothing,
+    // although the row above is painted there.
+    const underGap = { x: 106, y: 50, w: 3, h: 10 };
+    assert.equal(maskFeetOverPlatform(100, mask, underGap), false);
+    assert.equal(maskFeetOverPlatform(101, mask, underGap), true);
+});
+
+test("maskFeetOverPlatform handles an empty mask", () => {
+    assert.equal(maskFeetOverPlatform(0, [], { x: 0, y: 0, w: 10, h: 10 }), false);
 });
